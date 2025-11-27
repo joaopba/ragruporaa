@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, Scan, Package } from "lucide-react";
+import { CalendarIcon, Upload, Scan, Package, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/components/SessionContextProvider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 interface CpsRecord {
   CREATED_AT: string;
@@ -37,25 +40,29 @@ interface CpsRecord {
 }
 
 interface OpmeItem {
-  id: string; // Unique ID for each OPME item (e.g., generated UUID)
+  id: string;
   opme: string;
   lote: string;
   validade: string;
   referencia: string;
   anvisa: string;
   tuss: string;
-  codSimpro: string;
-  codigoBarras: string; // This is the key for scanning
+  cod_simpro: string;
+  codigo_barras: string;
 }
 
 interface LinkedOpme {
-  cpsId: number;
-  opmeBarcode: string;
-  linkedAt: string; // Timestamp
-  opmeDetails?: OpmeItem; // To display details of the linked OPME
+  id: string;
+  cps_id: number;
+  opme_barcode: string;
+  linked_at: string;
+  opmeDetails?: OpmeItem;
 }
 
 const OpmeScanner = () => {
+  const { session } = useSession();
+  const userId = session?.user?.id;
+
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [businessUnit, setBusinessUnit] = useState<string>("47");
@@ -65,38 +72,68 @@ const OpmeScanner = () => {
   const [opmeInventory, setOpmeInventory] = useState<OpmeItem[]>([]);
   const [barcodeInput, setBarcodeInput] = useState<string>("");
   const [linkedOpme, setLinkedOpme] = useState<LinkedOpme[]>([]);
+  const [isAddOpmeDialogOpen, setIsAddOpmeDialogOpen] = useState(false);
 
-  useEffect(() => {
-    // Load OPME inventory from localStorage on component mount
-    const storedOpme = localStorage.getItem("opmeInventory");
-    if (storedOpme) {
-      setOpmeInventory(JSON.parse(storedOpme));
-    }
-    // Load linked OPME from localStorage on component mount
-    const storedLinkedOpme = localStorage.getItem("linkedOpme");
-    if (storedLinkedOpme) {
-      setLinkedOpme(JSON.parse(storedLinkedOpme));
-    }
-  }, []);
+  // Form states for adding new OPME
+  const [newOpme, setNewOpme] = useState<Omit<OpmeItem, 'id' | 'user_id' | 'created_at'>>({
+    opme: "",
+    lote: "",
+    validade: "",
+    referencia: "",
+    anvisa: "",
+    tuss: "",
+    cod_simpro: "",
+    codigo_barras: "",
+  });
 
-  useEffect(() => {
-    // Filter linked OPME for the selected CPS
-    if (selectedCps) {
-      const patientLinkedOpme = linkedOpme.filter(
-        (item) => item.cpsId === selectedCps.CPS
-      );
-      // Enrich with OPME details
-      const enrichedLinkedOpme = patientLinkedOpme.map((link) => ({
+  const fetchOpmeInventory = useCallback(async () => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from("opme_inventory")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Erro ao buscar inventário OPME:", error);
+      toast.error("Falha ao carregar inventário OPME.");
+    } else {
+      setOpmeInventory(data as OpmeItem[]);
+    }
+  }, [userId]);
+
+  const fetchLinkedOpme = useCallback(async () => {
+    if (!userId || !selectedCps) {
+      setLinkedOpme([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("linked_opme")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("cps_id", selectedCps.CPS);
+
+    if (error) {
+      console.error("Erro ao buscar OPME bipado:", error);
+      toast.error("Falha ao carregar OPME bipado para este paciente.");
+    } else {
+      const enrichedLinkedOpme = data.map((link) => ({
         ...link,
         opmeDetails: opmeInventory.find(
-          (opme) => opme.codigoBarras === link.opmeBarcode
+          (opme) => opme.codigo_barras === link.opme_barcode
         ),
       }));
-      setLinkedOpme(enrichedLinkedOpme);
-    } else {
-      setLinkedOpme([]); // Clear if no CPS is selected
+      setLinkedOpme(enrichedLinkedOpme as LinkedOpme[]);
     }
-  }, [selectedCps, opmeInventory]); // Re-run when selectedCps or opmeInventory changes
+  }, [userId, selectedCps, opmeInventory]);
+
+  useEffect(() => {
+    fetchOpmeInventory();
+  }, [fetchOpmeInventory]);
+
+  useEffect(() => {
+    fetchLinkedOpme();
+  }, [fetchLinkedOpme]);
 
   const fetchCpsRecords = async () => {
     if (!startDate || !endDate || !businessUnit) {
@@ -115,14 +152,15 @@ const OpmeScanner = () => {
     try {
       const response = await fetch(apiUrl);
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
       const data: CpsRecord[] = await response.json();
       setCpsRecords(data);
       toast.success(`Foram encontrados ${data.length} registros de CPS.`);
-    } catch (error) {
-      console.error("Erro ao buscar registros de CPS:", error);
-      toast.error("Falha ao buscar registros de CPS. Verifique a conexão ou os parâmetros.");
+    } catch (error: any) {
+      console.error("Erro ao buscar registros de CPS:", error.message);
+      toast.error(`Falha ao buscar registros de CPS: ${error.message}. Verifique a conexão ou os parâmetros.`);
     } finally {
       setLoadingCps(false);
     }
@@ -138,33 +176,45 @@ const OpmeScanner = () => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (results) => {
+      complete: async (results) => {
         if (results.errors.length) {
           console.error("Erros ao analisar o CSV:", results.errors);
           toast.error("Erro ao analisar o arquivo CSV. Verifique o formato.");
           return;
         }
-        const parsedData: OpmeItem[] = results.data.map((row: any) => ({
-          id: crypto.randomUUID(), // Generate a unique ID
+        const parsedData: Omit<OpmeItem, 'id'>[] = results.data.map((row: any) => ({
           opme: row.OPME || "",
           lote: row.LOTE || "",
           validade: row.VALIDADE || "",
-          referencia: row["REFERÊNCIA."] || "", // Handle column name with dot
+          referencia: row["REFERÊNCIA."] || "",
           anvisa: row.ANVISA || "",
           tuss: row.TUSS || "",
-          codSimpro: row["COD.SIMPRO"] || "", // Handle column name with dot
-          codigoBarras: row["código de barras"] || "", // Handle column name with space
+          cod_simpro: row["COD.SIMPRO"] || "",
+          codigo_barras: row["código de barras"] || "",
         }));
 
-        // Filter out items without a barcode, as it's essential
-        const validOpme = parsedData.filter(item => item.codigoBarras);
+        const validOpme = parsedData.filter(item => item.codigo_barras);
         if (validOpme.length !== parsedData.length) {
           toast.warning("Alguns itens foram ignorados por não possuírem 'código de barras'.");
         }
 
-        setOpmeInventory(validOpme);
-        localStorage.setItem("opmeInventory", JSON.stringify(validOpme));
-        toast.success(`Foram carregados ${validOpme.length} itens OPME do arquivo.`);
+        if (validOpme.length === 0) {
+          toast.error("Nenhum item OPME válido encontrado no arquivo.");
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("opme_inventory")
+          .insert(validOpme.map(item => ({ ...item, user_id: userId })))
+          .select();
+
+        if (error) {
+          console.error("Erro ao salvar OPME no banco de dados:", error);
+          toast.error("Falha ao salvar inventário OPME no banco de dados.");
+        } else {
+          toast.success(`Foram carregados ${data.length} itens OPME do arquivo para o banco de dados.`);
+          fetchOpmeInventory(); // Refresh inventory
+        }
       },
       error: (error: any) => {
         console.error("Erro ao analisar o arquivo:", error);
@@ -173,7 +223,35 @@ const OpmeScanner = () => {
     });
   };
 
-  const handleBarcodeScan = () => {
+  const handleAddOpme = async () => {
+    if (!userId) {
+      toast.error("Você precisa estar logado para adicionar OPME.");
+      return;
+    }
+    if (!newOpme.opme || !newOpme.codigo_barras) {
+      toast.error("OPME e Código de Barras são campos obrigatórios.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("opme_inventory")
+      .insert({ ...newOpme, user_id: userId })
+      .select();
+
+    if (error) {
+      console.error("Erro ao adicionar OPME:", error);
+      toast.error(`Falha ao adicionar OPME: ${error.message}`);
+    } else {
+      toast.success(`OPME "${newOpme.opme}" adicionado com sucesso.`);
+      setNewOpme({
+        opme: "", lote: "", validade: "", referencia: "", anvisa: "", tuss: "", cod_simpro: "", codigo_barras: "",
+      });
+      setIsAddOpmeDialogOpen(false);
+      fetchOpmeInventory(); // Refresh inventory
+    }
+  };
+
+  const handleBarcodeScan = async () => {
     if (!selectedCps) {
       toast.error("Por favor, selecione um paciente (CPS) primeiro.");
       return;
@@ -182,9 +260,13 @@ const OpmeScanner = () => {
       toast.error("Por favor, insira um código de barras.");
       return;
     }
+    if (!userId) {
+      toast.error("Você precisa estar logado para bipar OPME.");
+      return;
+    }
 
     const opmeExists = opmeInventory.some(
-      (item) => item.codigoBarras === barcodeInput
+      (item) => item.codigo_barras === barcodeInput
     );
 
     if (!opmeExists) {
@@ -192,63 +274,111 @@ const OpmeScanner = () => {
       return;
     }
 
-    const isAlreadyLinked = linkedOpme.some(
-      (item) =>
-        item.cpsId === selectedCps.CPS && item.opmeBarcode === barcodeInput
-    );
-
-    if (isAlreadyLinked) {
-      toast.warning("Este OPME já foi bipado para este paciente.");
-      setBarcodeInput("");
-      return;
-    }
-
-    const newLinkedItem: LinkedOpme = {
-      cpsId: selectedCps.CPS,
-      opmeBarcode: barcodeInput,
-      linkedAt: new Date().toISOString(),
+    const newLinkedItem = {
+      cps_id: selectedCps.CPS,
+      opme_barcode: barcodeInput,
+      user_id: userId,
     };
 
-    const updatedLinkedOpme = [...linkedOpme, newLinkedItem];
-    setLinkedOpme(updatedLinkedOpme);
-    localStorage.setItem("linkedOpme", JSON.stringify(updatedLinkedOpme));
-    toast.success(`OPME com código ${barcodeInput} bipado para o paciente ${selectedCps.PATIENT}.`);
-    setBarcodeInput("");
-  };
+    const { error } = await supabase
+      .from("linked_opme")
+      .insert(newLinkedItem);
 
-  const getLinkedOpmeForSelectedCps = () => {
-    return linkedOpme
-      .filter((item) => item.cpsId === selectedCps?.CPS)
-      .map((link) => ({
-        ...link,
-        opmeDetails: opmeInventory.find(
-          (opme) => opme.codigoBarras === link.opmeBarcode
-        ),
-      }));
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        toast.warning("Este OPME já foi bipado para este paciente.");
+      } else {
+        console.error("Erro ao bipar OPME:", error);
+        toast.error(`Falha ao bipar OPME: ${error.message}`);
+      }
+    } else {
+      toast.success(`OPME com código ${barcodeInput} bipado para o paciente ${selectedCps.PATIENT}.`);
+      fetchLinkedOpme(); // Refresh linked OPME
+    }
+    setBarcodeInput("");
   };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-3xl font-bold text-center mb-6">Sistema de Bipagem de OPME</h1>
 
-      {/* OPME Inventory Upload */}
+      {/* OPME Inventory Management */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" /> Carregar Inventário OPME
+            <Package className="h-5 w-5" /> Gerenciar Inventário OPME
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Faça o upload de uma planilha CSV com os dados dos OPME. As colunas esperadas são: OPME, LOTE, VALIDADE, REFERÊNCIA., ANVISA, TUSS, COD.SIMPRO, código de barras.
+            Carregue ou adicione manualmente itens OPME ao seu inventário.
           </p>
-          <Input
-            id="opme-file-upload"
-            type="file"
-            accept=".csv"
-            onChange={handleFileUpload}
-            className="max-w-md"
-          />
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Label htmlFor="opme-file-upload">Carregar via CSV</Label>
+              <Input
+                id="opme-file-upload"
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="max-w-md mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Colunas esperadas: OPME, LOTE, VALIDADE, REFERÊNCIA., ANVISA, TUSS, COD.SIMPRO, código de barras.
+              </p>
+            </div>
+            <div className="flex-1 flex items-end justify-end">
+              <Dialog open={isAddOpmeDialogOpen} onOpenChange={setIsAddOpmeDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <PlusCircle className="h-4 w-4" /> Adicionar OPME Manualmente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Novo OPME</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="opme" className="text-right">OPME</Label>
+                      <Input id="opme" value={newOpme.opme} onChange={(e) => setNewOpme({ ...newOpme, opme: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="lote" className="text-right">Lote</Label>
+                      <Input id="lote" value={newOpme.lote} onChange={(e) => setNewOpme({ ...newOpme, lote: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="validade" className="text-right">Validade</Label>
+                      <Input id="validade" value={newOpme.validade} onChange={(e) => setNewOpme({ ...newOpme, validade: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="referencia" className="text-right">Referência</Label>
+                      <Input id="referencia" value={newOpme.referencia} onChange={(e) => setNewOpme({ ...newOpme, referencia: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="anvisa" className="text-right">ANVISA</Label>
+                      <Input id="anvisa" value={newOpme.anvisa} onChange={(e) => setNewOpme({ ...newOpme, anvisa: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="tuss" className="text-right">TUSS</Label>
+                      <Input id="tuss" value={newOpme.tuss} onChange={(e) => setNewOpme({ ...newOpme, tuss: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="cod_simpro" className="text-right">Cód. Simpro</Label>
+                      <Input id="cod_simpro" value={newOpme.cod_simpro} onChange={(e) => setNewOpme({ ...newOpme, cod_simpro: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="codigo_barras" className="text-right">Cód. Barras</Label>
+                      <Input id="codigo_barras" value={newOpme.codigo_barras} onChange={(e) => setNewOpme({ ...newOpme, codigo_barras: e.target.value })} className="col-span-3" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" onClick={handleAddOpme}>Adicionar OPME</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
           {opmeInventory.length > 0 && (
             <p className="text-sm text-green-600">
               Inventário OPME carregado: {opmeInventory.length} itens.
@@ -388,7 +518,7 @@ const OpmeScanner = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" /> Bipar OPME para Paciente: {selectedCps.PATIENT} (CPS: {selectedCps.CPS})
+              <Scan className="h-5 w-5" /> Bipar OPME para Paciente: {selectedCps.PATIENT} (CPS: {selectedCps.CPS})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -406,7 +536,7 @@ const OpmeScanner = () => {
               <Button onClick={handleBarcodeScan}>Bipar OPME</Button>
             </div>
 
-            {getLinkedOpmeForSelectedCps().length > 0 ? (
+            {linkedOpme.length > 0 ? (
               <ScrollArea className="h-[200px] w-full rounded-md border">
                 <Table>
                   <TableHeader>
@@ -419,13 +549,13 @@ const OpmeScanner = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {getLinkedOpmeForSelectedCps().map((item, index) => (
-                      <TableRow key={index}>
+                    {linkedOpme.map((item) => (
+                      <TableRow key={item.id}>
                         <TableCell>{item.opmeDetails?.opme || "N/A"}</TableCell>
                         <TableCell>{item.opmeDetails?.lote || "N/A"}</TableCell>
                         <TableCell>{item.opmeDetails?.validade || "N/A"}</TableCell>
-                        <TableCell>{item.opmeBarcode}</TableCell>
-                        <TableCell>{new Date(item.linkedAt).toLocaleString()}</TableCell>
+                        <TableCell>{item.opme_barcode}</TableCell>
+                        <TableCell>{new Date(item.linked_at).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
