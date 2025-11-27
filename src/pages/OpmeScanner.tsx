@@ -147,17 +147,26 @@ const OpmeScanner = () => {
 
     const formattedStartDate = format(startDate, "yyyy-MM-dd");
     const formattedEndDate = format(endDate, "yyyy-MM-dd");
-    const apiUrl = `https://api-lab.my-world.dev.br/cps/list-cps?start_date=${formattedStartDate}&end_date=${formattedEndDate}&type_cps=INT&type_group=CPS&business_unit=${businessUnit}`;
 
     try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      const { data, error } = await supabase.functions.invoke('fetch-cps-records', {
+        body: {
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          business_unit: businessUnit,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
-      const data: CpsRecord[] = await response.json();
-      setCpsRecords(data);
-      toast.success(`Foram encontrados ${data.length} registros de CPS.`);
+
+      if (data && Array.isArray(data)) {
+        setCpsRecords(data);
+        toast.success(`Foram encontrados ${data.length} registros de CPS.`);
+      } else {
+        toast.warning("Nenhum registro de CPS encontrado ou formato de dados inesperado.");
+      }
     } catch (error: any) {
       console.error("Erro ao buscar registros de CPS:", error.message);
       toast.error(`Falha ao buscar registros de CPS: ${error.message}. Verifique a conexão ou os parâmetros.`);
