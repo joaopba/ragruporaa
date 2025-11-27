@@ -51,6 +51,13 @@ const LinkedOpmeView = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState<string>(""); // New state for search term
 
+  useEffect(() => {
+    console.log("LinkedOpmeView - Current userId:", userId);
+    if (!userId) {
+      toast.error("ID do usuário não disponível. Por favor, faça login novamente.");
+    }
+  }, [userId]);
+
   const fetchOpmeInventory = useCallback(async () => {
     if (!userId) return [];
     const { data, error } = await supabase
@@ -69,6 +76,7 @@ const LinkedOpmeView = () => {
   const fetchLinkedData = useCallback(async () => {
     if (!userId) {
       setLoading(false);
+      console.warn("fetchLinkedData (LinkedOpmeView): userId is null, skipping fetch.");
       return;
     }
 

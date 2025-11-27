@@ -45,8 +45,18 @@ const OpmeRegistration = () => {
     codigo_barras: "",
   });
 
+  useEffect(() => {
+    console.log("OpmeRegistration - Current userId:", userId);
+    if (!userId) {
+      toast.error("ID do usuário não disponível. Por favor, faça login novamente.");
+    }
+  }, [userId]);
+
   const fetchOpmeInventory = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn("fetchOpmeInventory (OpmeRegistration): userId is null, skipping fetch.");
+      return;
+    }
     const { data, error } = await supabase
       .from("opme_inventory")
       .select("*")
