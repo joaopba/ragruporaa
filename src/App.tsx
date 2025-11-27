@@ -8,10 +8,10 @@ import NotFound from "./pages/NotFound";
 import OpmeScanner from "./pages/OpmeScanner";
 import OpmeRegistration from "./pages/OpmeRegistration";
 import LinkedOpmeView from "./pages/LinkedOpmeView";
-import Login from "./pages/Login"; // Mantém Login para acesso direto se necessário
+import Login from "./pages/Login";
 import Layout from "./components/Layout";
-// import { SessionContextProvider } from "./components/SessionContextProvider"; // Temporariamente removido
-// import ProtectedRoute from "./components/ProtectedRoute"; // Temporariamente removido
+import { SessionContextProvider } from "./components/SessionContextProvider"; // Reativado
+import ProtectedRoute from "./components/ProtectedRoute"; // Reativado
 
 const queryClient = new QueryClient();
 
@@ -21,17 +21,20 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        {/* Temporariamente ignorando SessionContextProvider e ProtectedRoute para depuração */}
-        <Routes>
-          <Route path="/login" element={<Login />} /> {/* Login ainda acessível */}
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/opme-scanner" element={<OpmeScanner />} />
-            <Route path="/opme-registration" element={<OpmeRegistration />} />
-            <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <SessionContextProvider> {/* Reativado */}
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}> {/* Reativado */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/opme-scanner" element={<OpmeScanner />} />
+                <Route path="/opme-registration" element={<OpmeRegistration />} />
+                <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
+              </Route>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SessionContextProvider> {/* Reativado */}
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
