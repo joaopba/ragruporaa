@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, useLocation } from 'react-router-dom';
+import LoadingSpinner from './LoadingSpinner'; // Importa o novo componente
 
 interface SessionContextType {
   session: Session | null;
@@ -15,8 +15,6 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export const SessionContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     console.log("SessionContextProvider: Initializing auth listener.");
@@ -25,14 +23,6 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
         console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
         setSession(currentSession);
         setLoading(false);
-
-        if (event === 'SIGNED_IN') {
-          console.log("SessionContextProvider: SIGNED_IN. Redirecting to /.");
-          navigate('/');
-        } else if (event === 'SIGNED_OUT') {
-          console.log("SessionContextProvider: SIGNED_OUT. Redirecting to /login.");
-          navigate('/login');
-        }
       }
     );
 
@@ -40,27 +30,20 @@ export const SessionContextProvider = ({ children }: { children: React.ReactNode
       console.log("SessionContextProvider: Initial getSession result:", session);
       setSession(session);
       setLoading(false);
-      if (!session && location.pathname !== '/login') {
-        console.log("SessionContextProvider: No session and not on login page. Redirecting to /login.");
-        navigate('/login');
-      }
     }).catch(error => {
       console.error("SessionContextProvider: Error getting session:", error);
       setLoading(false);
-      if (location.pathname !== '/login') {
-        navigate('/login');
-      }
     });
 
     return () => {
       console.log("SessionContextProvider: Unsubscribing auth listener.");
       authListener.subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, []); // Array de dependências vazio para rodar apenas uma vez
 
   if (loading) {
     console.log("SessionContextProvider: Rendering loading state.");
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
+    return <LoadingSpinner />; // Exibe o spinner enquanto carrega
   }
 
   console.log("SessionContextProvider: Rendering children. Current session:", session);
