@@ -3,7 +3,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Package, Scan, Home, History, LogOut } from "lucide-react";
+import { Package, Scan, Home, History, LogOut, LayoutDashboard } from "lucide-react"; // Adicionado LayoutDashboard
 import { useSession } from "./SessionContextProvider";
 import { Button } from "./ui/button";
 
@@ -13,9 +13,9 @@ const Sidebar = () => {
 
   const navItems = [
     {
-      name: "Início",
+      name: "Dashboard",
       href: "/",
-      icon: Home,
+      icon: LayoutDashboard, // Usando o ícone de dashboard
     },
     {
       name: "Bipagem de OPME",
@@ -41,7 +41,9 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 flex flex-col h-full">
-      <div className="text-2xl font-bold mb-8 text-sidebar-primary-foreground">Sistema OPME</div>
+      <div className="mb-8 flex items-center justify-center">
+        <img src="/logo-grupora-endoscopia.png" alt="Grupo RA Endoscopia Logo" className="h-12 w-auto" />
+      </div>
       <nav className="flex-1">
         <ul className="space-y-2">
           {navItems.map((item) => (
