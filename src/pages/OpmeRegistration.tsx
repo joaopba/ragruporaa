@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Package, PlusCircle, Loader2 } from "lucide-react";
+import { Upload, Package, PlusCircle, Loader2 } from "lucide-react"; // Adicionado Loader2
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/SessionContextProvider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DialogTrigger } from "@radix-ui/react-dialog"; // Importação necessária para DialogTrigger
 
 interface OpmeItem {
   id: string;

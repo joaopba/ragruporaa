@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import { useSession } from "@/components/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Package, Scan, XCircle, CheckCircle } from "lucide-react";
+import { Loader2, Package, Scan, XCircle, CheckCircle } from "lucide-react"; // Adicionado Loader2
 
 interface LocalCpsRecord {
   id: string;
