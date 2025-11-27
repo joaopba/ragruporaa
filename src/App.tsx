@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OpmeScanner from "./pages/OpmeScanner";
-import Login from "./pages/Login"; // Import the Login page
-import { SessionContextProvider } from "./components/SessionContextProvider"; // Import the SessionContextProvider
+import OpmeRegistration from "./pages/OpmeRegistration"; // Import the new OpmeRegistration page
+import Login from "./pages/Login";
+import { SessionContextProvider } from "./components/SessionContextProvider";
+import Layout from "./components/Layout"; // Import the new Layout component
 
 const queryClient = new QueryClient();
 
@@ -17,13 +19,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SessionContextProvider> {/* Wrap the Routes with SessionContextProvider */}
+        <SessionContextProvider>
           <Routes>
-            <Route path="/login" element={<Login />} /> {/* Login route */}
-            <Route path="/" element={<Index />} />
-            <Route path="/opme-scanner" element={<OpmeScanner />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="/login" element={<Login />} />
+            <Route element={<Layout />}> {/* Wrap main routes with Layout */}
+              <Route path="/" element={<Index />} />
+              <Route path="/opme-scanner" element={<OpmeScanner />} />
+              <Route path="/opme-registration" element={<OpmeRegistration />} /> {/* New route for OPME registration */}
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
         </SessionContextProvider>
       </BrowserRouter>

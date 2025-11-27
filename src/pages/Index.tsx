@@ -14,7 +14,7 @@ const Index = () => {
           <Button className="px-8 py-4 text-lg">Ir para o Sistema de Bipagem de OPME</Button>
         </Link>
       </div>
-      <MadeWithDyad />
+      {/* MadeWithDyad component is now handled by the Layout */}
     </div>
   );
 };
