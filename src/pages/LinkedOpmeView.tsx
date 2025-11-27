@@ -120,6 +120,7 @@ const LinkedOpmeView = () => {
           return { ...cps, linkedOpme: enrichedLinkedOpme };
         })
       );
+      console.log("LinkedOpmeView - Dados vinculados carregados:", cpsRecordsWithLinkedOpme);
       setLocalCpsRecords(cpsRecordsWithLinkedOpme as (LocalCpsRecord & { linkedOpme: LinkedOpme[] })[]);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);

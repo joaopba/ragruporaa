@@ -92,6 +92,7 @@ const OpmeScanner = () => {
       console.error("Erro ao buscar inventário OPME:", error);
       toast.error("Falha ao carregar inventário OPME.");
     } else {
+      console.log("OpmeScanner - Inventário OPME carregado:", data);
       setOpmeInventory(data as OpmeItem[]);
     }
   }, [userId]);
@@ -123,6 +124,7 @@ const OpmeScanner = () => {
           (opme) => opme.codigo_barras === link.opme_barcode
         ),
       }));
+      console.log("OpmeScanner - OPME bipado carregado:", enrichedLinkedOpme);
       setLinkedOpme(enrichedLinkedOpme as LinkedOpme[]);
     }
   }, [userId, selectedCps, opmeInventory]);
@@ -194,9 +196,11 @@ const OpmeScanner = () => {
       }
 
       if (data && Array.isArray(data)) {
+        console.log("OpmeScanner - Registros de CPS externos:", data);
         setCpsRecords(data);
         toast.success(`Foram encontrados ${data.length} registros de CPS.`);
       } else {
+        console.log("OpmeScanner - Nenhum registro de CPS externo encontrado ou formato de dados inesperado.");
         toast.warning("Nenhum registro de CPS encontrado ou formato de dados inesperado.");
       }
     } catch (error: any) {
@@ -336,7 +340,9 @@ const OpmeScanner = () => {
             </Button>
           </div>
 
-          {cpsRecords.length > 0 && (
+          {loadingCps ? (
+            <p className="text-center text-muted-foreground mt-4">Carregando registros de CPS...</p>
+          ) : cpsRecords.length > 0 ? (
             <ScrollArea className="h-[200px] w-full rounded-md border mt-4">
               <Table>
                 <TableHeader>
@@ -370,6 +376,8 @@ const OpmeScanner = () => {
                 </TableBody>
               </Table>
             </ScrollArea>
+          ) : (
+            <p className="text-muted-foreground mt-4">Nenhum registro de CPS encontrado para os critérios selecionados.</p>
           )}
         </CardContent>
       </Card>

@@ -66,6 +66,7 @@ const OpmeRegistration = () => {
       console.error("Erro ao buscar inventário OPME:", error);
       toast.error("Falha ao carregar inventário OPME.");
     } else {
+      console.log("OpmeRegistration - Inventário OPME carregado:", data);
       setOpmeInventory(data as OpmeItem[]);
     }
   }, [userId]);
@@ -278,7 +279,7 @@ const OpmeRegistration = () => {
               </Table>
             </ScrollArea>
           ) : (
-            <p className="text-muted-foreground">Nenhum item OPME no inventário ainda.</p>
+            <p className="text-muted-foreground">Nenhum item OPME no inventário ainda. Adicione um manualmente ou carregue via CSV.</p>
           )}
         </CardContent>
       </Card>
