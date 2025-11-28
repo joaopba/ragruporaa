@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns"; // Importar subDays
 import { CalendarIcon, Scan, Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -355,9 +355,11 @@ const OpmeScanner = () => {
         });
         toast.success(`CPS ${parsedCpsId} encontrado e selecionado.`);
       } else {
-        // Se não encontrado localmente, busca na API externa
-        const apiStartDate = format(new Date(), "yyyy-MM-dd"); // Usar data atual como fallback
-        const apiEndDate = format(new Date(), "yyyy-MM-dd");
+        // Se não encontrado localmente, busca na API externa com período de 15 dias
+        const today = new Date();
+        const fifteenDaysAgo = subDays(today, 15); // 15 dias atrás
+        const apiStartDate = format(fifteenDaysAgo, "yyyy-MM-dd");
+        const apiEndDate = format(today, "yyyy-MM-dd");
 
         const { data, error } = await supabase.functions.invoke('fetch-cps-records', {
           body: {
@@ -390,7 +392,7 @@ const OpmeScanner = () => {
                 created_at: foundInApi.CREATED_AT,
               }, { onConflict: 'cps_id, user_id' });
           } else {
-            toast.error(`CPS ${parsedCpsId} não encontrado na API externa para o período.`);
+            toast.error(`CPS ${parsedCpsId} não encontrado na API externa para o período de 15 dias.`);
           }
         } else {
           toast.warning("Nenhum registro de CPS externo encontrado ou formato de dados inesperado.");
