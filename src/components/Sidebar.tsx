@@ -3,7 +3,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Package, Scan, History, LogOut, LayoutDashboard, Users } from "lucide-react";
+import { Package, Scan, History, LogOut, LayoutDashboard, Users, FileText } from "lucide-react";
 import { useSession } from "./SessionContextProvider";
 import { Button } from "./ui/button";
 
@@ -11,6 +11,7 @@ const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ['GESTOR', 'OPERADOR'] },
   { name: "Bipagem de OPME", href: "/opme-scanner", icon: Scan, roles: ['GESTOR', 'OPERADOR'] },
   { name: "Visualizar Bipagens", href: "/linked-opme-view", icon: History, roles: ['GESTOR', 'OPERADOR'] },
+  { name: "Relatórios", href: "/reports", icon: FileText, roles: ['GESTOR', 'OPERADOR'] },
   { name: "Cadastro de OPME", href: "/opme-registration", icon: Package, roles: ['GESTOR'] },
   { name: "Gerenciar Usuários", href: "/user-management", icon: Users, roles: ['GESTOR'] },
 ];

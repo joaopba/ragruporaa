@@ -16,7 +16,8 @@ import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Account from "./pages/Account";
-import UserManagement from "./pages/UserManagement"; // Importar a nova página
+import UserManagement from "./pages/UserManagement";
+import Reports from "./pages/Reports"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/opme-scanner" element={<OpmeScanner />} />
                 <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
+                <Route path="/reports" element={<Reports />} />
                 <Route path="/account" element={<Account />} />
                 
                 {/* Rotas exclusivas para Gestores */}
