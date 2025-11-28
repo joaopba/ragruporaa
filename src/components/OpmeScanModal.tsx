@@ -5,9 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Scan, Loader2 } from "lucide-react";
+import { Scan, Loader2, XCircle } from "lucide-react"; // Adicionado XCircle para o botão de limpar
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Para a lista de itens bipados
 
 interface OpmeItem {
   id: string;
@@ -25,6 +26,12 @@ interface CpsRecord {
   CPS: number;
   PATIENT: string;
   // Outras propriedades do CpsRecord que você usa
+}
+
+interface LinkedOpmeSessionItem {
+  opme_barcode: string;
+  quantity: number;
+  opmeDetails?: OpmeItem;
 }
 
 interface OpmeScanModalProps {
@@ -46,11 +53,13 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
 }) => {
   const [barcodeInput, setBarcodeInput] = useState<string>("");
   const [loadingScan, setLoadingScan] = useState(false);
+  const [currentSessionScans, setCurrentSessionScans] = useState<LinkedOpmeSessionItem[]>([]); // Itens bipados nesta sessão do modal
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setBarcodeInput(""); // Limpa o input ao abrir o modal
+      setCurrentSessionScans([]); // Limpa as bipagens da sessão anterior
       // Foca no input após um pequeno delay para garantir que o modal esteja totalmente aberto
       const timer = setTimeout(() => {
         inputRef.current?.focus();
@@ -75,11 +84,11 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
 
     setLoadingScan(true);
 
-    const opmeExists = opmeInventory.some(
+    const opmeDetails = opmeInventory.find(
       (item) => item.codigo_barras === barcodeInput
     );
 
-    if (!opmeExists) {
+    if (!opmeDetails) {
       toast.error("Código de barras não encontrado no inventário OPME.");
       setLoadingScan(false);
       return;
@@ -98,8 +107,9 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
         throw new Error(`Falha ao verificar OPME existente: ${fetchError.message}`);
       }
 
+      let newQuantity = 1;
       if (existingLinkedItem) {
-        const newQuantity = existingLinkedItem.quantity + 1;
+        newQuantity = existingLinkedItem.quantity + 1;
         const { error: updateError } = await supabase
           .from("linked_opme")
           .update({ quantity: newQuantity })
@@ -108,7 +118,7 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
         if (updateError) {
           throw new Error(`Falha ao incrementar quantidade: ${updateError.message}`);
         }
-        toast.success(`Quantidade do OPME ${barcodeInput} para o paciente ${selectedCps.PATIENT} incrementada para ${newQuantity}.`);
+        toast.success(`Quantidade do OPME "${opmeDetails.opme}" para o paciente ${selectedCps.PATIENT} incrementada para ${newQuantity}.`);
       } else {
         const newLinkedItem = {
           cps_id: selectedCps.CPS,
@@ -124,8 +134,20 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
         if (insertError) {
           throw new Error(`Falha ao bipar OPME: ${insertError.message}`);
         }
-        toast.success(`OPME com código ${barcodeInput} bipado para o paciente ${selectedCps.PATIENT}.`);
+        toast.success(`OPME "${opmeDetails.opme}" bipado para o paciente ${selectedCps.PATIENT}.`);
       }
+
+      // Atualiza a lista de bipagens da sessão atual do modal
+      setCurrentSessionScans(prevScans => {
+        const existingScanIndex = prevScans.findIndex(item => item.opme_barcode === barcodeInput);
+        if (existingScanIndex > -1) {
+          const updatedScans = [...prevScans];
+          updatedScans[existingScanIndex] = { ...updatedScans[existingScanIndex], quantity: newQuantity };
+          return updatedScans;
+        } else {
+          return [...prevScans, { opme_barcode: barcodeInput, quantity: newQuantity, opmeDetails }];
+        }
+      });
 
       setBarcodeInput(""); // Limpa o input após o sucesso
       onScanSuccess(); // Notifica o componente pai para atualizar a lista de itens bipados
@@ -138,9 +160,14 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     }
   };
 
+  const handleClearSessionScans = () => {
+    setCurrentSessionScans([]);
+    toast.info("Bipagens da sessão atual limpas.");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] p-6">
+      <DialogContent className="sm:max-w-[500px] p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <Scan className="h-6 w-6 text-primary" /> Bipar OPME
@@ -171,12 +198,36 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
           <p className="text-xs text-muted-foreground">
             Digite ou escaneie o código de barras. Pressione Enter para bipar.
           </p>
-        </div>
-        <DialogFooter>
           <Button onClick={handleBarcodeScan} disabled={loadingScan} className="w-full">
             {loadingScan ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Bipar OPME
           </Button>
+
+          {currentSessionScans.length > 0 && (
+            <div className="mt-6 border-t pt-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Scan className="h-5 w-5 text-blue-500" /> Bipagens nesta sessão ({currentSessionScans.length} itens)
+                </h3>
+                <Button variant="ghost" size="sm" onClick={handleClearSessionScans} className="text-red-500 hover:text-red-600">
+                  <XCircle className="h-4 w-4 mr-1" /> Limpar
+                </Button>
+              </div>
+              <ScrollArea className="h-[150px] w-full rounded-md border p-2">
+                <ul className="space-y-2">
+                  {currentSessionScans.map((item, index) => (
+                    <li key={item.opme_barcode + index} className="flex justify-between items-center text-sm bg-muted/30 p-2 rounded-md">
+                      <span className="font-medium">{item.opmeDetails?.opme || item.opme_barcode}</span>
+                      <span className="text-muted-foreground">Qtd: {item.quantity}</span>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
