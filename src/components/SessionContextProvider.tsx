@@ -14,34 +14,25 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export const SessionContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Inicia como carregando
 
   useEffect(() => {
-    console.log("SessionContextProvider: Iniciando listener de autenticação e buscando sessão inicial.");
+    console.log("SessionContextProvider: Iniciando listener de autenticação.");
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("SessionContextProvider: Auth state change event:", event);
         console.log("SessionContextProvider: Current session from auth state change:", currentSession);
         setSession(currentSession);
-        setLoading(false); // Garante que o loading seja false após qualquer mudança de estado
+        setLoading(false); // Define loading como false após o primeiro evento (INITIAL_SESSION)
       }
     );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("SessionContextProvider: Initial session from getSession():", session);
-      setSession(session);
-      setLoading(false); // Garante que o loading seja false após a verificação inicial
-    }).catch(error => {
-      console.error("SessionContextProvider: Erro ao obter sessão inicial:", error);
-      setLoading(false); // Garante que o loading seja false mesmo em caso de erro
-    });
 
     return () => {
       console.log("SessionContextProvider: Desinscrevendo do listener de autenticação.");
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Array de dependências vazio significa que roda apenas uma vez na montagem
 
   if (loading) {
     console.log("SessionContextProvider: Renderizando LoadingSpinner.");
