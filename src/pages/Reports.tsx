@@ -16,13 +16,8 @@ import { DateRange } from 'react-day-picker';
 import { Calendar as CalendarIcon, Download, FileText, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
-
-// Extend jsPDF with autoTable
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDFWithAutoTable;
-}
 
 interface ReportData {
   linked_at: string;
@@ -59,7 +54,8 @@ const Reports = () => {
         toast.warning("Não foi possível carregar o logo no PDF. O relatório será gerado sem ele.");
       }
     };
-    convertImageToBase64('https://ranucleodeendoscopia.com.br/wp-content/themes/ra-v1/images/logo/logo-grupora-endoscopia.png');
+    // Carregando o logo localmente para evitar erros de CORS
+    convertImageToBase64('/logo.png');
   }, []);
 
   const handleGenerateReport = useCallback(async () => {
@@ -118,15 +114,15 @@ const Reports = () => {
       toast.warning("Não há dados para exportar. Gere um relatório primeiro.");
       return;
     }
-    const doc = new jsPDF({ orientation: 'landscape' }) as jsPDFWithAutoTable;
+    const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 14;
 
-    const reportPeriod = `Período: ${format(date!.from!, "dd/MM/yyyy")} a ${format(date!.to!, "dd/MM/yyyy")}`;
+    const reportPeriod = `Período: ${date?.from ? format(date.from, "dd/MM/yyyy") : ''} a ${date?.to ? format(date.to, "dd/MM/yyyy") : ''}`;
     const generationDate = `Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Data', 'CPS', 'Paciente', 'OPME', 'Cód. Barras', 'Lote', 'Validade', 'Qtd']],
       body: reportData.map(item => [
         item.linked_at,
@@ -158,12 +154,12 @@ const Reports = () => {
       margin: { top: 30 },
     });
 
-    const totalPages = (doc.internal as any).getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(150);
-      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
     }
 
     doc.save(`relatorio_opme_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
