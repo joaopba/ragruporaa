@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/SessionContextProvider";
 import { toast } from "sonner";
-import { History, Search, Loader2 } from "lucide-react"; // Adicionado Loader2
+import { History, Search, Loader2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 
@@ -212,6 +212,10 @@ const LinkedOpmeView = () => {
                               <TableHead>OPME</TableHead>
                               <TableHead>Lote</TableHead>
                               <TableHead>Validade</TableHead>
+                              <TableHead>Referência</TableHead>
+                              <TableHead>ANVISA</TableHead>
+                              <TableHead>TUSS</TableHead>
+                              <TableHead>Cód. Simpro</TableHead>
                               <TableHead>Cód. Barras</TableHead>
                               <TableHead className="text-right">Quantidade</TableHead>
                               <TableHead>Bipado Em</TableHead>
@@ -223,6 +227,10 @@ const LinkedOpmeView = () => {
                                 <TableCell className="font-medium">{item.opmeDetails?.opme || "N/A"}</TableCell>
                                 <TableCell>{item.opmeDetails?.lote || "N/A"}</TableCell>
                                 <TableCell>{item.opmeDetails?.validade || "N/A"}</TableCell>
+                                <TableCell>{item.opmeDetails?.referencia || "N/A"}</TableCell>
+                                <TableCell>{item.opmeDetails?.anvisa || "N/A"}</TableCell>
+                                <TableCell>{item.opmeDetails?.tuss || "N/A"}</TableCell>
+                                <TableCell>{item.opmeDetails?.cod_simpro || "N/A"}</TableCell>
                                 <TableCell>{item.opme_barcode}</TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                                 <TableCell>{new Date(item.linked_at).toLocaleString()}</TableCell>
