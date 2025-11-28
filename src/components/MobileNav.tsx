@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 import { useSession } from "./SessionContextProvider";
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ['GESTOR', 'OPERADOR'] },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ['GESTOR', 'OPERADOR', 'RECEPÇÃO'] },
   { name: "Bipagem de OPME", href: "/opme-scanner", icon: Scan, roles: ['GESTOR', 'OPERADOR'] },
-  { name: "Visualizar Bipagens", href: "/linked-opme-view", icon: History, roles: ['GESTOR', 'OPERADOR'] },
-  { name: "Relatórios", href: "/reports", icon: FileText, roles: ['GESTOR', 'OPERADOR'] },
+  { name: "Visualizar Bipagens", href: "/linked-opme-view", icon: History, roles: ['GESTOR', 'OPERADOR', 'RECEPÇÃO'] },
+  { name: "Relatórios", href: "/reports", icon: FileText, roles: ['GESTOR', 'OPERADOR', 'RECEPÇÃO'] },
   { name: "Cadastro de OPME", href: "/opme-registration", icon: Package, roles: ['GESTOR'] },
   { name: "Gerenciar Usuários", href: "/user-management", icon: Users, roles: ['GESTOR'] },
 ];
