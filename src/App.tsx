@@ -13,7 +13,8 @@ import Layout from "./components/Layout";
 import { SessionContextProvider } from "./components/SessionContextProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
-import ErrorBoundary from "./components/ErrorBoundary"; // Importar ErrorBoundary
+import ErrorBoundary from "./components/ErrorBoundary";
+import Account from "./pages/Account"; // Importar a nova página
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/opme-scanner" element={<OpmeScanner />} />
                 <Route path="/opme-registration" element={<OpmeRegistration />} />
                 <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
+                <Route path="/account" element={<Account />} /> {/* Adicionar a nova rota */}
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
