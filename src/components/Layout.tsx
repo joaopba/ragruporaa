@@ -5,53 +5,30 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { MadeWithDyad } from "./made-with-dyad";
 import Header from "./Header";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./ErrorBoundary";
-import DailyActivityBanner from "./DailyActivityBanner"; // Importar o novo banner
+import DailyActivityBanner from "./DailyActivityBanner";
 
 const Layout = () => {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <div className="flex min-h-screen bg-background text-foreground">
-        {/* Sidebar para telas maiores */}
-        <div className="hidden md:block">
-          <ResizablePanelGroup
-            direction="horizontal"
-            className="min-h-screen w-full"
-          >
-            <ResizablePanel defaultSize={18} minSize={15} maxSize={25} className="bg-card">
-              <Sidebar />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={82}>
-              <div className="flex flex-col h-full">
-                <Header />
-                <main className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 overflow-y-auto bg-secondary/40">
-                  <DailyActivityBanner />
-                  <ErrorBoundary>
-                    <Outlet />
-                  </ErrorBoundary>
-                  <MadeWithDyad />
-                </main>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+      <div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[250px_1fr] lg:grid-cols-[280px_1fr]">
+        {/* Sidebar for desktop */}
+        <div className="hidden md:block border-r bg-sidebar">
+          <Sidebar />
         </div>
 
-        {/* Layout para telas menores */}
-        <div className="flex flex-col flex-1 md:hidden">
+        {/* Main content area */}
+        <div className="flex flex-col w-full min-w-0">
           <Header />
-          <main className="flex-1 flex flex-col p-4 bg-secondary/40">
-            <DailyActivityBanner />
-            <ErrorBoundary>
-              <Outlet />
-            </ErrorBoundary>
-            <MadeWithDyad />
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-secondary/40">
+            <div className="mx-auto w-full max-w-7xl">
+              <DailyActivityBanner />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
+              <MadeWithDyad />
+            </div>
           </main>
         </div>
       </div>

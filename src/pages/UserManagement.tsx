@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Loader2, PlusCircle, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 
 interface UserProfile {
   id: string;
@@ -25,16 +25,19 @@ const UserManagement = () => {
   const { profile } = useSession();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'GESTOR' | 'OPERADOR'>('OPERADOR');
-  const [inviting, setInviting] = useState(false);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    role: 'OPERADOR' as 'GESTOR' | 'OPERADOR',
+  });
+  const [addingUser, setAddingUser] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    // Precisamos de uma RPC para buscar emails, pois a tabela auth.users não é diretamente acessível
     const { data, error } = await supabase.rpc('get_user_profiles');
-
     if (error) {
       toast.error(`Erro ao buscar usuários: ${error.message}`);
     } else {
@@ -49,28 +52,34 @@ const UserManagement = () => {
     }
   }, [profile, fetchUsers]);
 
-  const handleInviteUser = async () => {
-    if (!inviteEmail) {
-      toast.error("O e-mail é obrigatório.");
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setNewUser(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleRoleChange = (value: 'GESTOR' | 'OPERADOR') => {
+    setNewUser(prev => ({ ...prev, role: value }));
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password || !newUser.firstName) {
+      toast.error("Nome, e-mail e senha são obrigatórios.");
       return;
     }
-    setInviting(true);
+    setAddingUser(true);
     try {
-      const { error } = await supabase.functions.invoke('invite-user', {
-        body: { email: inviteEmail, role: inviteRole },
+      const { error } = await supabase.functions.invoke('create-user', {
+        body: newUser,
       });
-
       if (error) throw error;
-
-      toast.success(`Convite enviado para ${inviteEmail}`);
-      setIsInviteDialogOpen(false);
-      setInviteEmail('');
-      setInviteRole('OPERADOR');
-      fetchUsers(); // Atualiza a lista
+      toast.success(`Usuário ${newUser.email} criado com sucesso!`);
+      setIsAddUserDialogOpen(false);
+      setNewUser({ email: '', password: '', firstName: '', lastName: '', role: 'OPERADOR' });
+      fetchUsers();
     } catch (error: any) {
-      toast.error(`Falha ao enviar convite: ${error.message}`);
+      toast.error(`Falha ao criar usuário: ${error.message}`);
     } finally {
-      setInviting(false);
+      setAddingUser(false);
     }
   };
 
@@ -84,22 +93,36 @@ const UserManagement = () => {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Gerenciamento de Usuários</CardTitle>
-            <CardDescription>Convide novos usuários e gerencie as permissões de acesso.</CardDescription>
+            <CardDescription>Crie novos usuários e gerencie as permissões de acesso.</CardDescription>
           </div>
-          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+          <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
             <DialogTrigger asChild>
-              <Button><UserPlus className="mr-2 h-4 w-4" /> Convidar Usuário</Button>
+              <Button><UserPlus className="mr-2 h-4 w-4" /> Criar Usuário</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Convidar Novo Usuário</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Criar Novo Usuário</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Nome</Label>
+                    <Input id="firstName" value={newUser.firstName} onChange={handleInputChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Sobrenome</Label>
+                    <Input id="lastName" value={newUser.lastName} onChange={handleInputChange} />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
-                  <Input id="email" type="email" placeholder="nome@exemplo.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+                  <Input id="email" type="email" value={newUser.email} onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Input id="password" type="password" value={newUser.password} onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Permissão</Label>
-                  <Select value={inviteRole} onValueChange={(value: 'GESTOR' | 'OPERADOR') => setInviteRole(value)}>
+                  <Select value={newUser.role} onValueChange={handleRoleChange}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="OPERADOR">Operador</SelectItem>
@@ -109,9 +132,9 @@ const UserManagement = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleInviteUser} disabled={inviting}>
-                  {inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Enviar Convite
+                <Button onClick={handleCreateUser} disabled={addingUser}>
+                  {addingUser && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Criar Usuário
                 </Button>
               </DialogFooter>
             </DialogContent>

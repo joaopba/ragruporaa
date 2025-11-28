@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/components/SessionContextProvider";
 import { toast } from "sonner";
-import { History, Search, Loader2, Scan } from "lucide-react"; // Adicionado Scan aqui
+import { History, Search, Loader2, Scan } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 
@@ -205,7 +205,7 @@ const LinkedOpmeView = () => {
                       <Scan className="h-5 w-5 text-blue-500" /> OPMEs Bipados:
                     </h3>
                     {cpsRecord.linkedOpme.length > 0 ? (
-                      <ScrollArea className="h-[200px] w-full rounded-md border">
+                      <div className="relative w-full overflow-auto">
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-muted/50">
@@ -238,7 +238,7 @@ const LinkedOpmeView = () => {
                             ))}
                           </TableBody>
                         </Table>
-                      </ScrollArea>
+                      </div>
                     ) : (
                       <p className="text-muted-foreground text-sm text-center py-4">Nenhum OPME bipado para este CPS.</p>
                     )}
