@@ -77,7 +77,7 @@ const OpmeScanner = () => {
   const [linkedOpme, setLinkedOpme] = useState<LinkedOpme[]>([]);
   const [activeTab, setActiveTab] = useState<string>("bipar");
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
-  const [isCpsSelectionModalOpen, setIsCpsSelectionModalOpen] = useState(false);
+  const [isCpsSelectionModalOpen, setIsCpsSelectionModalOpen] = useState(false); // Inicializa como false
 
   useEffect(() => {
     if (!userId) {
@@ -417,22 +417,30 @@ const OpmeScanner = () => {
     }
   }, [userId]);
 
+  // Este useEffect controla a abertura inicial do modal de seleção de CPS
   useEffect(() => {
-    if (startDate && endDate && businessUnit && userId) {
-      fetchCpsRecords();
-    }
-  }, [startDate, endDate, businessUnit, userId, fetchCpsRecords]);
-
-  useEffect(() => {
-    console.log("OpmeScanner State Update: selectedCps:", selectedCps?.CPS, "isScanModalOpen:", isScanModalOpen, "isCpsSelectionModalOpen:", isCpsSelectionModalOpen);
+    console.log("OpmeScanner useEffect for modals. selectedCps:", selectedCps?.CPS, "isScanModalOpen:", isScanModalOpen, "isCpsSelectionModalOpen:", isCpsSelectionModalOpen);
     const cpsIdFromUrl = searchParams.get('cps_id');
-    if (cpsIdFromUrl && userId) {
+
+    if (!userId) {
+      // Se o usuário não estiver logado, garanta que os modais estejam fechados.
+      setIsCpsSelectionModalOpen(false);
+      setIsScanModalOpen(false);
+      return;
+    }
+
+    if (cpsIdFromUrl) {
+      // Se houver um CPS na URL, processa-o. handleCpsSearch já lida com a abertura do modal de bipagem.
       handleCpsSearch(cpsIdFromUrl);
-      setSearchParams({});
-    } else if (userId && !selectedCps && !isScanModalOpen && !isCpsSelectionModalOpen) {
+      setSearchParams({}); // Limpa o parâmetro da URL após o processamento
+    } else if (!selectedCps && !isScanModalOpen && !isCpsSelectionModalOpen) {
+      // Se nenhum CPS estiver selecionado, e nenhum modal estiver aberto, abre o modal de seleção de CPS.
+      // Isso garante que ele abra na carga inicial se não houver CPS na URL.
       setIsCpsSelectionModalOpen(true);
     }
+    // As transições entre modais (fechar seleção, abrir bipagem) são gerenciadas por handleSelectCps e handleChangeCps.
   }, [searchParams, userId, selectedCps, isScanModalOpen, isCpsSelectionModalOpen, handleCpsSearch, setSearchParams]);
+
 
   useEffect(() => {
     fetchLinkedOpme();
@@ -587,14 +595,14 @@ const OpmeScanner = () => {
       </Card>
 
       {selectedCps && (
-        <Card key={selectedCps.CPS} className="shadow-lg"> {/* Adicionado key aqui */}
+        <Card key={selectedCps.CPS} className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-2xl font-semibold">
               <Scan className="h-6 w-6 text-primary" /> Gerenciar OPME para Paciente: <span className="text-blue-600 dark:text-blue-400">{selectedCps.PATIENT}</span> (CPS: <span className="text-blue-600 dark:text-blue-400">{selectedCps.CPS}</span>)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs key={selectedCps.CPS + "-tabs"} value={activeTab} onValueChange={setActiveTab} className="w-full"> {/* Adicionado key aqui */}
               <TabsList className="grid w-full grid-cols-2 h-10">
                 <TabsTrigger value="bipar" className="text-base">Bipar OPME</TabsTrigger>
                 <TabsTrigger value="itens-bipados" className="text-base">Itens Bipados</TabsTrigger>

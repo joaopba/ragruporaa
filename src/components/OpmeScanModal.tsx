@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Scan, Loader2, XCircle, Users } from "lucide-react"; // Adicionado XCircle e Users para o botão de limpar e mudar paciente
+import { Scan, Loader2, XCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -167,13 +167,16 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-6">
+      <DialogContent className="sm:max-w-[500px] p-6" aria-describedby="opme-scan-description"> {/* Adicionado aria-describedby */}
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <Scan className="h-6 w-6 text-primary" /> Bipar OPME
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <p id="opme-scan-description" className="sr-only"> {/* Descrição para acessibilidade */}
+            Paciente selecionado: {selectedCps?.PATIENT} (CPS: {selectedCps?.CPS}). Digite ou escaneie o código de barras.
+          </p>
           {selectedCps && (
             <p className="text-sm text-muted-foreground">
               Paciente selecionado: <span className="font-semibold text-foreground">{selectedCps.PATIENT}</span> (CPS: {selectedCps.CPS})

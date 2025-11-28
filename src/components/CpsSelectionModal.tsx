@@ -43,14 +43,17 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] p-6">
+    <Dialog open={isOpen} onOpenChange={onClose} modal={true}> {/* Adicionado modal={true} */}
+      <DialogContent className="sm:max-w-[400px] p-6" aria-describedby="cps-selection-description"> {/* Adicionado aria-describedby */}
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <Search className="h-6 w-6 text-primary" /> Selecionar Paciente (CPS)
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <p id="cps-selection-description" className="sr-only"> {/* Descrição para acessibilidade */}
+            Digite o número do CPS para iniciar a bipagem.
+          </p>
           <div className="space-y-2">
             <Label htmlFor="cps-number" className="text-base">Número do CPS</Label>
             <Input
