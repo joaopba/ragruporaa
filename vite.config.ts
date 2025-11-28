@@ -7,6 +7,7 @@ export default defineConfig(() => ({
   server: {
     host: "::",
     port: 8080,
+    allowedHosts: ['ranucleo.chatconquista.com'],
   },
   plugins: [dyadComponentTagger(), react()],
   resolve: {
