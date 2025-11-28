@@ -587,7 +587,7 @@ const OpmeScanner = () => {
       </Card>
 
       {selectedCps && (
-        <Card className="shadow-lg">
+        <Card key={selectedCps.CPS} className="shadow-lg"> {/* Adicionado key aqui */}
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-2xl font-semibold">
               <Scan className="h-6 w-6 text-primary" /> Gerenciar OPME para Paciente: <span className="text-blue-600 dark:text-blue-400">{selectedCps.PATIENT}</span> (CPS: <span className="text-blue-600 dark:text-blue-400">{selectedCps.CPS}</span>)
