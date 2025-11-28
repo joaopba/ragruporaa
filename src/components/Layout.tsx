@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/resizable";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./ErrorBoundary";
+import DailyActivityBanner from "./DailyActivityBanner"; // Importar o novo banner
 
 const Layout = () => {
   return (
@@ -30,12 +31,11 @@ const Layout = () => {
             <ResizablePanel defaultSize={82}>
               <div className="flex flex-col h-full">
                 <Header />
-                <main className="flex-1 flex flex-col p-6 lg:p-8 overflow-y-auto bg-secondary/40">
-                  <div className="flex-1 max-w-full mx-auto w-full">
-                    <ErrorBoundary>
-                      <Outlet />
-                    </ErrorBoundary>
-                  </div>
+                <main className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 overflow-y-auto bg-secondary/40">
+                  <DailyActivityBanner />
+                  <ErrorBoundary>
+                    <Outlet />
+                  </ErrorBoundary>
                   <MadeWithDyad />
                 </main>
               </div>
@@ -47,11 +47,10 @@ const Layout = () => {
         <div className="flex flex-col flex-1 md:hidden">
           <Header />
           <main className="flex-1 flex flex-col p-4 bg-secondary/40">
-            <div className="flex-1 w-full">
-              <ErrorBoundary>
-                <Outlet />
-              </ErrorBoundary>
-            </div>
+            <DailyActivityBanner />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
             <MadeWithDyad />
           </main>
         </div>
