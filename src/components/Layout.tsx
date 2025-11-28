@@ -8,6 +8,7 @@ import Header from "./Header";
 import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./ErrorBoundary";
 import DailyActivityBanner from "./DailyActivityBanner";
+import RealtimeNotifier from "./RealtimeNotifier"; // Importando o novo componente
 
 const Layout = () => {
   return (
@@ -23,6 +24,7 @@ const Layout = () => {
           <Header />
           <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-secondary/40">
             <div className="mx-auto w-full max-w-7xl">
+              <RealtimeNotifier /> {/* Adicionando o notificador aqui */}
               <DailyActivityBanner />
               <ErrorBoundary>
                 <Outlet />
