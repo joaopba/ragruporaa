@@ -52,15 +52,7 @@ const LinkedOpmeView = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  useEffect(() => {
-    console.log("LinkedOpmeView - Current userId:", userId);
-    if (!userId) {
-      toast.error("ID do usuário não disponível. Por favor, faça login novamente.");
-    }
-  }, [userId]);
-
   const fetchOpmeInventory = useCallback(async () => {
-    // REMOVIDO FILTRO DE USUÁRIO PARA BUSCAR INVENTÁRIO GLOBAL
     const { data, error } = await supabase
       .from("opme_inventory")
       .select("*");
@@ -74,53 +66,53 @@ const LinkedOpmeView = () => {
   }, []);
 
   const fetchLinkedData = useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      console.warn("fetchLinkedData (LinkedOpmeView): userId is null, skipping fetch.");
-      return;
-    }
-
     setLoading(true);
     try {
       const inventory = await fetchOpmeInventory();
       setOpmeInventory(inventory);
 
-      const { data: cpsData, error: cpsError } = await supabase
-        .from("local_cps_records")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+      // Busca todos os registros de CPS que possuem OPMEs vinculados, sem filtro de usuário
+      const { data: distinctCpsData, error: distinctCpsError } = await supabase
+        .from('linked_opme')
+        .select('cps_id');
+      
+      if (distinctCpsError) throw distinctCpsError;
 
-      if (cpsError) {
-        console.error("Erro ao buscar registros de CPS locais:", cpsError);
-        toast.error("Falha ao carregar registros de CPS locais.");
+      const distinctCpsIds = [...new Set(distinctCpsData.map(item => item.cps_id))];
+
+      if (distinctCpsIds.length === 0) {
+        setLocalCpsRecords([]);
+        setLoading(false);
         return;
       }
 
-      const cpsRecordsWithLinkedOpme = await Promise.all(
-        (cpsData as LocalCpsRecord[]).map(async (cps) => {
-          const { data: linkedOpmeData, error: linkedOpmeError } = await supabase
-            .from("linked_opme")
-            .select("*")
-            .eq("user_id", userId)
-            .eq("cps_id", cps.cps_id)
-            .order("linked_at", { ascending: false });
+      // Busca os detalhes desses CPSs
+      const { data: cpsData, error: cpsError } = await supabase
+        .from("local_cps_records")
+        .select("*")
+        .in('cps_id', distinctCpsIds)
+        .order("created_at", { ascending: false });
 
-          if (linkedOpmeError) {
-            console.error(`Erro ao buscar OPME bipado para CPS ${cps.cps_id}:`, linkedOpmeError);
-            return { ...cps, linkedOpme: [] };
-          }
+      if (cpsError) throw cpsError;
 
-          const enrichedLinkedOpme = (linkedOpmeData as LinkedOpme[]).map((link) => ({
-            ...link,
-            opmeDetails: inventory.find(
-              (opme) => opme.codigo_barras === link.opme_barcode
-            ),
-          }));
-          return { ...cps, linkedOpme: enrichedLinkedOpme };
-        })
-      );
-      console.log("LinkedOpmeView - Dados vinculados carregados:", cpsRecordsWithLinkedOpme);
+      // Busca todos os OPMEs vinculados
+      const { data: allLinkedOpme, error: allLinkedOpmeError } = await supabase
+        .from('linked_opme')
+        .select('*')
+        .in('cps_id', distinctCpsIds)
+        .order("linked_at", { ascending: false });
+
+      if (allLinkedOpmeError) throw allLinkedOpmeError;
+
+      const cpsRecordsWithLinkedOpme = (cpsData as LocalCpsRecord[]).map(cps => {
+        const linkedOpmeForCps = allLinkedOpme.filter(link => link.cps_id === cps.cps_id);
+        const enrichedLinkedOpme = linkedOpmeForCps.map(link => ({
+          ...link,
+          opmeDetails: inventory.find(opme => opme.codigo_barras === link.opme_barcode),
+        }));
+        return { ...cps, linkedOpme: enrichedLinkedOpme };
+      });
+
       setLocalCpsRecords(cpsRecordsWithLinkedOpme as (LocalCpsRecord & { linkedOpme: LinkedOpme[] })[]);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
@@ -128,7 +120,7 @@ const LinkedOpmeView = () => {
     } finally {
       setLoading(false);
     }
-  }, [userId, fetchOpmeInventory]);
+  }, [fetchOpmeInventory]);
 
   useEffect(() => {
     fetchLinkedData();
