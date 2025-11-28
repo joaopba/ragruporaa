@@ -10,34 +10,38 @@ import OpmeRegistration from "./pages/OpmeRegistration";
 import LinkedOpmeView from "./pages/LinkedOpmeView";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
-import { SessionContextProvider } from "./components/SessionContextProvider"; // Reativado
-import ProtectedRoute from "./components/ProtectedRoute"; // Reativado
+import { SessionContextProvider } from "./components/SessionContextProvider";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { ThemeProvider } from "next-themes";
+import ErrorBoundary from "./components/ErrorBoundary"; // Importar ErrorBoundary
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <SessionContextProvider> {/* Reativado */}
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route element={<ProtectedRoute />}> {/* Reativado */}
-              <Route element={<Layout />}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/opme-scanner" element={<OpmeScanner />} />
-                <Route path="/opme-registration" element={<OpmeRegistration />} />
-                <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
+  <ErrorBoundary> {/* Envolver toda a aplicação com ErrorBoundary */}
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SessionContextProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<Layout />}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/opme-scanner" element={<OpmeScanner />} />
+                  <Route path="/opme-registration" element={<OpmeRegistration />} />
+                  <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
+                </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </SessionContextProvider> {/* Reativado */}
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </SessionContextProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

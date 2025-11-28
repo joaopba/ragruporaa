@@ -3,44 +3,43 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Package, Scan, Home, History, LogOut, LayoutDashboard } from "lucide-react";
+import { Package, Scan, History, LogOut, LayoutDashboard } from "lucide-react";
 import { useSession } from "./SessionContextProvider";
 import { Button } from "./ui/button";
+
+const navItems = [
+  {
+    name: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Bipagem de OPME",
+    href: "/opme-scanner",
+    icon: Scan,
+  },
+  {
+    name: "Cadastro de OPME",
+    href: "/opme-registration",
+    icon: Package,
+  },
+  {
+    name: "Visualizar Bipagens",
+    href: "/linked-opme-view",
+    icon: History,
+  },
+];
 
 const Sidebar = () => {
   const location = useLocation();
   const { supabase } = useSession();
 
-  const navItems = [
-    {
-      name: "Dashboard",
-      href: "/",
-      icon: LayoutDashboard,
-    },
-    {
-      name: "Bipagem de OPME",
-      href: "/opme-scanner",
-      icon: Scan,
-    },
-    {
-      name: "Cadastro de OPME",
-      href: "/opme-registration",
-      icon: Package,
-    },
-    {
-      name: "Visualizar Bipagens",
-      href: "/linked-opme-view",
-      icon: History,
-    },
-  ];
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // O SessionContextProvider lidará com o redirecionamento para /login
   };
 
   return (
-    <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4 flex flex-col h-screen sticky top-0">
+    <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4">
       <div className="mb-8 flex items-center justify-center py-4">
         <img src="https://ranucleodeendoscopia.com.br/wp-content/themes/ra-v1/images/logo/logo-grupora-endoscopia.png" alt="Grupo RA Endoscopia Logo" className="h-14 w-auto" />
       </div>
@@ -74,7 +73,7 @@ const Sidebar = () => {
           Sair
         </Button>
       </div>
-    </aside>
+    </div>
   );
 };
 
