@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Scan, Package, History } from 'lucide-react';
+import { LayoutDashboard, Scan, Package, History, User as UserIcon } from 'lucide-react';
 import { MobileNav } from './MobileNav';
 import { ThemeToggle } from './ThemeToggle';
 import UserProfile from './UserProfile';
