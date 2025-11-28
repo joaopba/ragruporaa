@@ -99,10 +99,10 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-4xl font-extrabold text-center text-foreground mb-8">Visão Geral do Sistema OPME</h1>
+      {/* O título principal da página agora está no Header */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 border-primary">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total de CPS Registrados</CardTitle>
             <Package className="h-5 w-5 text-primary" />
@@ -114,7 +114,7 @@ const Dashboard = () => {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 border-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">CPS com Bipagem</CardTitle>
             <CheckCircle className="h-5 w-5 text-green-500" />
@@ -126,7 +126,7 @@ const Dashboard = () => {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 border-red-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">CPS Sem Bipagem</CardTitle>
             <XCircle className="h-5 w-5 text-red-500" />
@@ -138,7 +138,7 @@ const Dashboard = () => {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 border-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total de OPMEs Bipados</CardTitle>
             <Scan className="h-5 w-5 text-blue-500" />

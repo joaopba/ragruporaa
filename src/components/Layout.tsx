@@ -4,6 +4,7 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { MadeWithDyad } from "./made-with-dyad";
+import Header from "./Header"; // Importar o novo Header
 
 const Layout = () => {
   console.log("Layout: Componente Layout renderizado.");
@@ -12,6 +13,7 @@ const Layout = () => {
       <Sidebar />
       <main className="flex-1 flex flex-col p-6 lg:p-10">
         <div className="flex-1 max-w-7xl mx-auto w-full">
+          <Header /> {/* Adicionar o Header aqui */}
           <Outlet />
         </div>
         <MadeWithDyad />
