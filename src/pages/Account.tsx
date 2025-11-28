@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Loader2, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const Account = () => {
   const { session, user, profile, supabase } = useSession();
