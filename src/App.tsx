@@ -18,30 +18,28 @@ import ErrorBoundary from "./components/ErrorBoundary"; // Importar ErrorBoundar
 const queryClient = new QueryClient();
 
 const App = () => (
-  <ErrorBoundary> {/* Envolver toda a aplicação com ErrorBoundary */}
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <SessionContextProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route element={<ProtectedRoute />}>
-                <Route element={<Layout />}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/opme-scanner" element={<OpmeScanner />} />
-                  <Route path="/opme-registration" element={<OpmeRegistration />} />
-                  <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
-                </Route>
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <SessionContextProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/opme-scanner" element={<OpmeScanner />} />
+                <Route path="/opme-registration" element={<OpmeRegistration />} />
+                <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
               </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </SessionContextProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SessionContextProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
 );
 
 export default App;

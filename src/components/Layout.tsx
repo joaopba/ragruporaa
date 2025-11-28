@@ -10,7 +10,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { ThemeProvider } from "next-themes"; // Importar ThemeProvider
+import { ThemeProvider } from "next-themes";
+import ErrorBoundary from "./ErrorBoundary"; // Importar ErrorBoundary
 
 const Layout = () => {
   console.log("Layout: Componente Layout renderizado.");
@@ -31,7 +32,9 @@ const Layout = () => {
               <main className="flex-1 flex flex-col p-6 lg:p-10">
                 <div className="flex-1 max-w-7xl mx-auto w-full">
                   <Header />
-                  <Outlet />
+                  <ErrorBoundary> {/* ErrorBoundary aqui */}
+                    <Outlet />
+                  </ErrorBoundary>
                 </div>
                 <MadeWithDyad />
               </main>
@@ -44,7 +47,9 @@ const Layout = () => {
           <Header /> {/* Header com MobileNav para telas pequenas */}
           <main className="flex-1 flex flex-col p-4">
             <div className="flex-1 max-w-7xl mx-auto w-full">
-              <Outlet />
+              <ErrorBoundary> {/* ErrorBoundary aqui também para mobile */}
+                <Outlet />
+              </ErrorBoundary>
             </div>
             <MadeWithDyad />
           </main>
