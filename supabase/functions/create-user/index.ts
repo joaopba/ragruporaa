@@ -19,8 +19,8 @@ serve(async (req) => {
 
     const { email, password, firstName, lastName, role } = await req.json();
 
-    if (!email || !password || !firstName || !role) {
-      return new Response(JSON.stringify({ error: 'Email, senha, nome e permissão são obrigatórios.' }), {
+    if (!email || !password || !role) {
+      return new Response(JSON.stringify({ error: 'Email, senha e permissão são obrigatórios.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
