@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -21,7 +21,7 @@ import Papa from 'papaparse';
 
 // Extend jsPDF with autoTable
 interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
+  autoTable: (options: any) => jsPDFWithAutoTable;
 }
 
 interface ReportData {
@@ -42,6 +42,25 @@ const Reports = () => {
   const [date, setDate] = useState<DateRange | undefined>();
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData[]>([]);
+  const [logoBase64, setLogoBase64] = useState<string | null>(null);
+
+  useEffect(() => {
+    const convertImageToBase64 = async (url: string) => {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setLogoBase64(reader.result as string);
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error("Erro ao carregar o logo para o PDF:", error);
+        toast.warning("Não foi possível carregar o logo no PDF. O relatório será gerado sem ele.");
+      }
+    };
+    convertImageToBase64('https://ranucleodeendoscopia.com.br/wp-content/themes/ra-v1/images/logo/logo-grupora-endoscopia.png');
+  }, []);
 
   const handleGenerateReport = useCallback(async () => {
     if (!user?.id) {
@@ -100,24 +119,53 @@ const Reports = () => {
       return;
     }
     const doc = new jsPDF({ orientation: 'landscape' }) as jsPDFWithAutoTable;
-    doc.text("Relatório de Bipagem de OPME", 14, 16);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+
+    const reportPeriod = `Período: ${format(date!.from!, "dd/MM/yyyy")} a ${format(date!.to!, "dd/MM/yyyy")}`;
+    const generationDate = `Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
+
     doc.autoTable({
-      head: [['Data Bipagem', 'CPS', 'Paciente', 'OPME', 'Cód. Barras', 'Lote', 'Validade', 'Qtd']],
+      head: [['Data', 'CPS', 'Paciente', 'OPME', 'Cód. Barras', 'Lote', 'Validade', 'Qtd']],
       body: reportData.map(item => [
         item.linked_at,
         item.cps_id,
         item.patient_name,
         item.opme_name,
         item.opme_barcode,
-        item.lote,
-        item.validade,
+        item.lote || 'N/A',
+        item.validade || 'N/A',
         item.quantity,
       ]),
-      startY: 20,
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [34, 197, 94] }, // Cor verde para o cabeçalho
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [22, 163, 74], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didDrawPage: (data) => {
+        // Header
+        if (logoBase64) {
+          doc.addImage(logoBase64, 'PNG', margin, 10, 40, 10);
+        }
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Relatório de Bipagem de OPME", pageWidth / 2, 15, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(reportPeriod, pageWidth - margin, 15, { align: 'right' });
+        doc.text(generationDate, pageWidth - margin, 20, { align: 'right' });
+      },
+      margin: { top: 30 },
     });
+
+    const totalPages = (doc.internal as any).getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    }
+
     doc.save(`relatorio_opme_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
