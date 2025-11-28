@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, subDays } from "date-fns"; // Importar subDays
+import { format, subDays } from "date-fns";
 import { CalendarIcon, Scan, Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import { useSession } from "@/components/SessionContextProvider";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpmeScanModal from "@/components/OpmeScanModal";
-import CpsSelectionModal from "@/components/CpsSelectionModal"; // Importar o novo modal de seleção de CPS
+import CpsSelectionModal from "@/components/CpsSelectionModal";
 
 interface CpsRecord {
   CREATED_AT: string;
@@ -77,7 +77,7 @@ const OpmeScanner = () => {
   const [linkedOpme, setLinkedOpme] = useState<LinkedOpme[]>([]);
   const [activeTab, setActiveTab] = useState<string>("bipar");
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
-  const [isCpsSelectionModalOpen, setIsCpsSelectionModalOpen] = useState(false); // Novo estado para o modal de seleção de CPS
+  const [isCpsSelectionModalOpen, setIsCpsSelectionModalOpen] = useState(false);
 
   useEffect(() => {
     if (!userId) {
@@ -133,9 +133,9 @@ const OpmeScanner = () => {
     setSelectedCps(record);
     setActiveTab("bipar");
     console.log("handleSelectCps: Setting isCpsSelectionModalOpen to false");
-    setIsCpsSelectionModalOpen(false); // Fecha o modal de seleção de CPS
+    setIsCpsSelectionModalOpen(false);
     console.log("handleSelectCps: Setting isScanModalOpen to true");
-    setIsScanModalOpen(true); // Abre o modal de bipagem
+    setIsScanModalOpen(true);
     if (!userId) {
       toast.error("Você precisa estar logado para selecionar um CPS.");
       return;
@@ -170,7 +170,6 @@ const OpmeScanner = () => {
 
     setLoadingCps(true);
     setCpsRecords([]);
-    // setSelectedCps(null); // Não resetar selectedCps aqui para não fechar o modal de bipagem se já estiver aberto
 
     const formattedStartDate = startDate ? format(startDate, "yyyy-MM-dd") : '';
     const formattedEndDate = endDate ? format(endDate, "yyyy-MM-dd") : '';
@@ -333,7 +332,6 @@ const OpmeScanner = () => {
 
     setLoadingCps(true);
     try {
-      // Tenta buscar no banco de dados local primeiro
       let { data: localCps, error: localError } = await supabase
         .from('local_cps_records')
         .select('*')
@@ -341,9 +339,8 @@ const OpmeScanner = () => {
         .eq('cps_id', parsedCpsId)
         .single();
 
-      if (localError && localError.code !== 'PGRST116') { // PGRST116 é "no rows found"
+      if (localError && localError.code !== 'PGRST116') {
         console.error("Erro ao buscar CPS localmente:", localError);
-        // Continua para a API externa se houver erro diferente de "não encontrado"
       }
 
       if (localCps) {
@@ -358,9 +355,8 @@ const OpmeScanner = () => {
         });
         toast.success(`CPS ${parsedCpsId} encontrado e selecionado.`);
       } else {
-        // Se não encontrado localmente, busca na API externa com período de 15 dias
         const today = new Date();
-        const fifteenDaysAgo = subDays(today, 15); // 15 dias atrás
+        const fifteenDaysAgo = subDays(today, 15);
         const apiStartDate = format(fifteenDaysAgo, "yyyy-MM-dd");
         const apiEndDate = format(today, "yyyy-MM-dd");
 
@@ -368,7 +364,7 @@ const OpmeScanner = () => {
           body: {
             start_date: apiStartDate,
             end_date: apiEndDate,
-            business_unit: businessUnit, // Usar a unidade de negócio padrão ou selecionada
+            business_unit: businessUnit,
           },
         });
 
@@ -382,7 +378,6 @@ const OpmeScanner = () => {
             handleSelectCps(foundInApi);
             toast.success(`CPS ${parsedCpsId} encontrado na API externa e selecionado.`);
 
-            // Salva na base de dados local após encontrar na API externa
             await supabase
               .from('local_cps_records')
               .upsert({
@@ -423,7 +418,6 @@ const OpmeScanner = () => {
   }, [userId]);
 
   useEffect(() => {
-    // Este useEffect continua buscando com filtros de data/unidade por padrão
     if (startDate && endDate && businessUnit && userId) {
       fetchCpsRecords();
     }
@@ -433,14 +427,12 @@ const OpmeScanner = () => {
     console.log("OpmeScanner State Update: selectedCps:", selectedCps?.CPS, "isScanModalOpen:", isScanModalOpen, "isCpsSelectionModalOpen:", isCpsSelectionModalOpen);
     const cpsIdFromUrl = searchParams.get('cps_id');
     if (cpsIdFromUrl && userId) {
-      // Se houver CPS na URL, tenta selecioná-lo e abre o modal de bipagem
       handleCpsSearch(cpsIdFromUrl);
-      setSearchParams({}); // Limpa o parâmetro da URL
-    } else if (userId && !selectedCps && !isScanModalOpen && !isCpsSelectionModalOpen) { // Adicionado !isCpsSelectionModalOpen
-      // Se não houver CPS selecionado e o modal de bipagem não estiver aberto, abre o modal de seleção de CPS
+      setSearchParams({});
+    } else if (userId && !selectedCps && !isScanModalOpen && !isCpsSelectionModalOpen) {
       setIsCpsSelectionModalOpen(true);
     }
-  }, [searchParams, userId, selectedCps, isScanModalOpen, isCpsSelectionModalOpen, handleCpsSearch, setSearchParams]); // Adicionado isCpsSelectionModalOpen às dependências
+  }, [searchParams, userId, selectedCps, isScanModalOpen, isCpsSelectionModalOpen, handleCpsSearch, setSearchParams]);
 
   useEffect(() => {
     fetchLinkedOpme();
@@ -448,12 +440,12 @@ const OpmeScanner = () => {
 
   const handleChangeCps = () => {
     console.log("handleChangeCps: Closing scan modal, clearing selectedCps, opening selection modal.");
-    setIsScanModalOpen(false); // Fecha o modal de bipagem
-    setSelectedCps(null); // Limpa o CPS selecionado
-    setIsCpsSelectionModalOpen(true); // Abre o modal de seleção de CPS
+    setIsScanModalOpen(false);
+    setSelectedCps(null);
+    setIsCpsSelectionModalOpen(true);
   };
 
-  if (loadingCps && !selectedCps) { // Mostrar spinner apenas se estiver carregando e nenhum CPS estiver selecionado
+  if (loadingCps && !selectedCps) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -466,7 +458,6 @@ const OpmeScanner = () => {
     <div className="container mx-auto px-4 py-8 space-y-8">
       <h1 className="text-4xl font-extrabold text-center text-foreground mb-8">Bipagem de OPME</h1>
 
-      {/* CPS Record Search and Selection by Period */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-2xl font-semibold">
@@ -595,7 +586,6 @@ const OpmeScanner = () => {
         </CardContent>
       </Card>
 
-      {/* OPME Scanning Section with Tabs */}
       {selectedCps && (
         <Card className="shadow-lg">
           <CardHeader>
@@ -666,7 +656,6 @@ const OpmeScanner = () => {
         </Card>
       )}
 
-      {/* O Modal de Seleção de CPS */}
       <CpsSelectionModal
         isOpen={isCpsSelectionModalOpen}
         onClose={() => setIsCpsSelectionModalOpen(false)}
@@ -674,17 +663,16 @@ const OpmeScanner = () => {
         loading={loadingCps}
       />
 
-      {/* O Modal de Bipagem */}
       {selectedCps && (
         <OpmeScanModal
-          key={selectedCps.CPS} {/* Adicionado key para garantir que o modal seja remontado corretamente */}
+          key={selectedCps.CPS}
           isOpen={isScanModalOpen}
           onClose={() => setIsScanModalOpen(false)}
           selectedCps={selectedCps}
           opmeInventory={opmeInventory}
           userId={userId}
           onScanSuccess={fetchLinkedOpme}
-          onChangeCps={handleChangeCps} // Passa a função para mudar o CPS
+          onChangeCps={handleChangeCps}
         />
       )}
     </div>
