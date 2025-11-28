@@ -129,9 +129,12 @@ const OpmeScanner = () => {
   }, [userId, selectedCps, opmeInventory]);
 
   const handleSelectCps = useCallback(async (record: CpsRecord) => {
+    console.log("handleSelectCps: Setting selectedCps to", record.CPS);
     setSelectedCps(record);
     setActiveTab("bipar");
+    console.log("handleSelectCps: Setting isCpsSelectionModalOpen to false");
     setIsCpsSelectionModalOpen(false); // Fecha o modal de seleção de CPS
+    console.log("handleSelectCps: Setting isScanModalOpen to true");
     setIsScanModalOpen(true); // Abre o modal de bipagem
     if (!userId) {
       toast.error("Você precisa estar logado para selecionar um CPS.");
@@ -427,22 +430,24 @@ const OpmeScanner = () => {
   }, [startDate, endDate, businessUnit, userId, fetchCpsRecords]);
 
   useEffect(() => {
+    console.log("OpmeScanner State Update: selectedCps:", selectedCps?.CPS, "isScanModalOpen:", isScanModalOpen, "isCpsSelectionModalOpen:", isCpsSelectionModalOpen);
     const cpsIdFromUrl = searchParams.get('cps_id');
     if (cpsIdFromUrl && userId) {
       // Se houver CPS na URL, tenta selecioná-lo e abre o modal de bipagem
       handleCpsSearch(cpsIdFromUrl);
       setSearchParams({}); // Limpa o parâmetro da URL
-    } else if (userId && !selectedCps && !isScanModalOpen) {
+    } else if (userId && !selectedCps && !isScanModalOpen && !isCpsSelectionModalOpen) { // Adicionado !isCpsSelectionModalOpen
       // Se não houver CPS selecionado e o modal de bipagem não estiver aberto, abre o modal de seleção de CPS
       setIsCpsSelectionModalOpen(true);
     }
-  }, [searchParams, userId, selectedCps, isScanModalOpen, handleCpsSearch, setSearchParams]);
+  }, [searchParams, userId, selectedCps, isScanModalOpen, isCpsSelectionModalOpen, handleCpsSearch, setSearchParams]); // Adicionado isCpsSelectionModalOpen às dependências
 
   useEffect(() => {
     fetchLinkedOpme();
   }, [selectedCps, fetchLinkedOpme]);
 
   const handleChangeCps = () => {
+    console.log("handleChangeCps: Closing scan modal, clearing selectedCps, opening selection modal.");
     setIsScanModalOpen(false); // Fecha o modal de bipagem
     setSelectedCps(null); // Limpa o CPS selecionado
     setIsCpsSelectionModalOpen(true); // Abre o modal de seleção de CPS
@@ -597,6 +602,7 @@ const OpmeScanner = () => {
             <CardTitle className="flex items-center gap-3 text-2xl font-semibold">
               <Scan className="h-6 w-6 text-primary" /> Gerenciar OPME para Paciente: <span className="text-blue-600 dark:text-blue-400">{selectedCps.PATIENT}</span> (CPS: <span className="text-blue-600 dark:text-blue-400">{selectedCps.CPS}</span>)
             </CardTitle>
+          </CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -672,6 +678,7 @@ const OpmeScanner = () => {
       {/* O Modal de Bipagem */}
       {selectedCps && (
         <OpmeScanModal
+          key={selectedCps.CPS} {/* Adicionado key para garantir que o modal seja remontado corretamente */}
           isOpen={isScanModalOpen}
           onClose={() => setIsScanModalOpen(false)}
           selectedCps={selectedCps}
