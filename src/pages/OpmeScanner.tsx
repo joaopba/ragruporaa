@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { CalendarIcon, Scan, Search, Loader2, ListFilter } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Scan, Search, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,68 +12,84 @@ import { useSession } from "@/components/SessionContextProvider";
 import { useSearchParams } from "react-router-dom";
 import OpmeScanModal from "@/components/OpmeScanModal";
 import CpsSelectionModal from "@/components/CpsSelectionModal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 
-// Interfaces... (mantidas como antes)
-interface CpsRecord { CREATED_AT: string; TIPO: string; SITUACAO: string; ATENDANT: string; CPS: number; PATIENT: string; TREATMENT: string | null; UNIDADENEGOCIO: string; REGISTRATION: string | null; PROFESSIONAL: string; AGREEMENT: string; A_CID: string; DATA_ALTA: string | null; DATAENTREGA: string | null; DATARAT: string | null; DATA_FECHADO: string; DATA_RECEBIMENTO: string | null; }
+interface CpsRecord { CPS: number; PATIENT: string; PROFESSIONAL: string; AGREEMENT: string; UNIDADENEGOCIO: string; CREATED_AT: string; }
 interface OpmeItem { id: string; opme: string; lote: string; validade: string; referencia: string; anvisa: string; tuss: string; cod_simpro: string; codigo_barras: string; }
 interface LinkedOpme { id: string; cps_id: number; opme_barcode: string; linked_at: string; quantity: number; opmeDetails?: OpmeItem; }
 
 const OpmeScanner = () => {
-  const { session } = useSession();
-  const userId = session?.user?.id;
+  const { user } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-  const [businessUnit, setBusinessUnit] = useState<string>("47");
-  const [cpsRecords, setCpsRecords] = useState<CpsRecord[]>([]);
-  const [loadingCps, setLoadingCps] = useState(false);
   const [selectedCps, setSelectedCps] = useState<CpsRecord | null>(null);
   const [opmeInventory, setOpmeInventory] = useState<OpmeItem[]>([]);
   const [linkedOpme, setLinkedOpme] = useState<LinkedOpme[]>([]);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isCpsSelectionModalOpen, setIsCpsSelectionModalOpen] = useState(false);
+  const [initialLoadHandled, setInitialLoadHandled] = useState(false);
 
-  const fetchOpmeInventory = useCallback(async () => { /* ...código mantido... */ }, [userId]);
-  const fetchLinkedOpme = useCallback(async () => { /* ...código mantido... */ }, [userId, selectedCps, opmeInventory]);
+  const fetchOpmeInventory = useCallback(async () => {
+    if (!user?.id) return;
+    const { data, error } = await supabase.from("opme_inventory").select("*").eq("user_id", user.id);
+    if (error) toast.error("Falha ao carregar inventário OPME.");
+    else setOpmeInventory(data as OpmeItem[]);
+  }, [user?.id]);
 
-  const saveCpsLocally = useCallback(async (record: CpsRecord) => {
-    if (!userId) return;
-    const { error } = await supabase
-      .from('local_cps_records')
-      .upsert({ /* ...código mantido... */ }, { onConflict: 'cps_id, user_id' });
-    if (error) toast.error("Falha ao salvar detalhes do CPS localmente.");
-  }, [userId]);
+  const fetchLinkedOpme = useCallback(async () => {
+    if (!user?.id || !selectedCps) {
+      setLinkedOpme([]);
+      return;
+    }
+    const { data, error } = await supabase.from("linked_opme").select("*").eq("user_id", user.id).eq("cps_id", selectedCps.CPS);
+    if (error) {
+      toast.error("Falha ao carregar OPME bipado.");
+    } else {
+      const enrichedData = data.map(link => ({ ...link, opmeDetails: opmeInventory.find(opme => opme.codigo_barras === link.opme_barcode) }));
+      setLinkedOpme(enrichedData as LinkedOpme[]);
+    }
+  }, [user?.id, selectedCps, opmeInventory]);
 
-  const handleSelectCps = (record: CpsRecord) => {
-    setSelectedCps(record);
+  const handleCpsSelected = useCallback(async (record: CpsRecord) => {
+    if (!user?.id) return;
+    
     setIsCpsSelectionModalOpen(false);
-  };
+    setSelectedCps(record);
+    setIsScanModalOpen(true);
 
-  const handleCpsSearch = useCallback(async (cpsIdToSearch: string) => { /* ...código mantido, mas chama handleSelectCps no final... */ }, [userId, businessUnit, handleSelectCps]);
-  const fetchCpsRecords = useCallback(async (forceApiFetch = false) => { /* ...código mantido... */ }, [startDate, endDate, businessUnit, userId]);
+    const { error } = await supabase.from('local_cps_records').upsert({
+      user_id: user.id,
+      cps_id: record.CPS,
+      patient: record.PATIENT,
+      professional: record.PROFESSIONAL,
+      agreement: record.AGREEMENT,
+      business_unit: record.UNIDADENEGOCIO,
+      created_at: record.CREATED_AT,
+    }, { onConflict: 'cps_id, user_id' });
 
-  useEffect(() => { fetchOpmeInventory(); }, [fetchOpmeInventory]);
-  useEffect(() => { fetchLinkedOpme(); }, [selectedCps, fetchLinkedOpme]);
-
-  useEffect(() => {
-    const cpsIdFromUrl = searchParams.get('cps_id');
-    if (cpsIdFromUrl) {
-      handleCpsSearch(cpsIdFromUrl);
-      setSearchParams({});
-    } else if (!selectedCps) {
-      setIsCpsSelectionModalOpen(true);
-    }
-  }, [userId, searchParams, handleCpsSearch, setSearchParams, selectedCps]);
+    if (error) toast.error("Falha ao salvar detalhes do CPS localmente.");
+  }, [user?.id]);
 
   useEffect(() => {
-    if (selectedCps) {
-      saveCpsLocally(selectedCps);
-      setIsScanModalOpen(true);
+    fetchOpmeInventory();
+  }, [fetchOpmeInventory]);
+
+  useEffect(() => {
+    if (user?.id && !initialLoadHandled) {
+      const cpsIdFromUrl = searchParams.get('cps_id');
+      if (cpsIdFromUrl) {
+        // Se houver um CPS na URL, abrimos o modal de seleção com o CPS pré-preenchido
+        setIsCpsSelectionModalOpen(true);
+      } else {
+        // Caso contrário, apenas abrimos o modal de seleção vazio
+        setIsCpsSelectionModalOpen(true);
+      }
+      setInitialLoadHandled(true);
     }
-  }, [selectedCps, saveCpsLocally]);
+  }, [user?.id, searchParams, initialLoadHandled]);
+
+  useEffect(() => {
+    fetchLinkedOpme();
+  }, [selectedCps, fetchLinkedOpme]);
 
   const handleChangeCps = () => {
     setIsScanModalOpen(false);
@@ -102,7 +114,7 @@ const OpmeScanner = () => {
         <Card className="shadow-lg animate-in fade-in-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-3 text-2xl font-semibold">
-              <Scan className="h-6 w-6 text-primary" />
+              <UserCheck className="h-6 w-6 text-green-500" />
               Paciente Selecionado
             </CardTitle>
           </CardHeader>
@@ -143,8 +155,8 @@ const OpmeScanner = () => {
         </Card>
       )}
 
-      <CpsSelectionModal isOpen={isCpsSelectionModalOpen} onClose={() => setIsCpsSelectionModalOpen(false)} onCpsSelected={handleSelectCps} loading={loadingCps} />
-      {selectedCps && <OpmeScanModal key={selectedCps.CPS} isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} selectedCps={selectedCps} opmeInventory={opmeInventory} userId={userId} onScanSuccess={fetchLinkedOpme} onChangeCps={handleChangeCps} />}
+      <CpsSelectionModal isOpen={isCpsSelectionModalOpen} onClose={() => setIsCpsSelectionModalOpen(false)} onCpsSelected={handleCpsSelected} />
+      {selectedCps && <OpmeScanModal key={selectedCps.CPS} isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} selectedCps={selectedCps} opmeInventory={opmeInventory} userId={user?.id} onScanSuccess={fetchLinkedOpme} onChangeCps={handleChangeCps} />}
     </div>
   );
 };

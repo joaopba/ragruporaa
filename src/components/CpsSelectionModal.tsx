@@ -1,75 +1,136 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "./SessionContextProvider";
+import { useSearchParams } from "react-router-dom";
+import { ScrollArea } from "./ui/scroll-area";
+import { format, subDays } from "date-fns";
 
-interface CpsRecord { CPS: number; PATIENT: string; }
+interface CpsRecord { CPS: number; PATIENT: string; PROFESSIONAL: string; AGREEMENT: string; UNIDADENEGOCIO: string; CREATED_AT: string; }
 interface CpsSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCpsSelected: (record: CpsRecord) => void;
-  loading: boolean;
 }
 
-const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, onCpsSelected, loading }) => {
+const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, onCpsSelected }) => {
+  const { user } = useSession();
+  const [searchParams] = useSearchParams();
   const [cpsInput, setCpsInput] = useState<string>("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<CpsRecord[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
+      const cpsIdFromUrl = searchParams.get('cps_id');
+      const initialValue = cpsIdFromUrl || "";
+      setCpsInput(initialValue);
+      setSearchResults([]);
+      if (initialValue) {
+        handleSearch(initialValue);
+      }
       const timer = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, searchParams]);
 
-  const handleCpsSubmit = async () => {
-    if (!cpsInput) {
+  const handleSearch = useCallback(async (cpsToSearch: string) => {
+    if (!cpsToSearch) {
       toast.error("Por favor, insira um número de CPS.");
       return;
     }
-    // A lógica de busca foi movida para a página principal
-    // Aqui, apenas simulamos a seleção para o exemplo.
-    // A implementação real deve ser feita na página OpmeScanner.
-    // onCpsSelected({ CPS: parseInt(cpsInput), PATIENT: "Paciente Encontrado" });
-    toast.info("A busca agora é feita na página principal.");
-  };
+    if (!user?.id) {
+      toast.error("Você precisa estar logado para buscar.");
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchResults([]);
+    const parsedCpsId = parseInt(cpsToSearch, 10);
+
+    try {
+      const today = new Date();
+      const fifteenDaysAgo = subDays(today, 15);
+      const { data, error } = await supabase.functions.invoke('fetch-cps-records', {
+        body: {
+          start_date: format(fifteenDaysAgo, "yyyy-MM-dd"),
+          end_date: format(today, "yyyy-MM-dd"),
+          business_unit: "47", // Pode ser parametrizado se necessário
+        },
+      });
+
+      if (error) throw error;
+
+      if (data && Array.isArray(data)) {
+        const results = data.filter((record: CpsRecord) => record.CPS.toString().includes(cpsToSearch));
+        setSearchResults(results);
+        if (results.length === 0) {
+          toast.info("Nenhum CPS encontrado com este número no período de 15 dias.");
+        }
+      } else {
+        toast.warning("Nenhum registro de CPS encontrado ou formato de dados inesperado.");
+      }
+    } catch (error: any) {
+      console.error("Erro ao buscar CPS:", error);
+      toast.error(`Falha ao buscar CPS: ${error.message}`);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [user?.id]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Buscar Paciente (CPS)</DialogTitle>
-          <DialogDescription>
-            Digite o número do CPS para buscar e selecionar um paciente.
-          </DialogDescription>
+          <DialogTitle>Buscar e Selecionar Paciente (CPS)</DialogTitle>
+          <DialogDescription>Digite o número do CPS para buscar e selecionar um paciente para a bipagem.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="cps-number" className="text-right">
-              CPS
-            </Label>
-            <Input
-              id="cps-number"
-              ref={inputRef}
-              value={cpsInput}
-              onChange={(e) => setCpsInput(e.target.value)}
-              className="col-span-3"
-              disabled={loading}
-              onKeyPress={(e) => e.key === 'Enter' && handleCpsSubmit()}
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleCpsSubmit} disabled={loading}>
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-            Buscar
+        <div className="flex items-center space-x-2 pt-4">
+          <Input
+            ref={inputRef}
+            placeholder="Digite o número do CPS..."
+            value={cpsInput}
+            onChange={(e) => setCpsInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch(cpsInput)}
+            disabled={isSearching}
+          />
+          <Button onClick={() => handleSearch(cpsInput)} disabled={isSearching}>
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
-        </DialogFooter>
+        </div>
+        <div className="mt-4 min-h-[200px]">
+          {isSearching ? (
+            <div className="flex items-center justify-center h-full"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : searchResults.length > 0 ? (
+            <ScrollArea className="h-[200px] border rounded-md">
+              <div className="p-2 space-y-2">
+                {searchResults.map(record => (
+                  <div key={record.CPS} className="flex justify-between items-center p-2 rounded-md hover:bg-accent">
+                    <div>
+                      <p className="font-semibold">{record.PATIENT}</p>
+                      <p className="text-sm text-muted-foreground">CPS: {record.CPS}</p>
+                    </div>
+                    <Button size="sm" onClick={() => onCpsSelected(record)}>Selecionar</Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+              <AlertCircle className="h-8 w-8 mb-2" />
+              <p>Nenhum resultado encontrado.</p>
+              <p className="text-xs">Digite um número de CPS e clique em buscar.</p>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -9,51 +9,132 @@ import { Link } from "react-router-dom";
 import { useSession } from "@/components/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Package, Scan, XCircle, CheckCircle, ArrowRight } from "lucide-react";
+import { Loader2, Package, Scan, XCircle, CheckCircle, ArrowRight, PlusCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface LocalCpsRecord { id: string; user_id: string; cps_id: number; patient: string; professional: string; agreement: string; business_unit: string; created_at: string; }
 
 const Dashboard = () => {
-  const { userId } = useSession();
+  const { user } = useSession();
   const [loading, setLoading] = useState(true);
-  const [totalCps, setTotalCps] = useState(0);
-  const [cpsWithLinkedOpme, setCpsWithLinkedOpme] = useState(0);
+  const [stats, setStats] = useState({
+    totalCps: 0,
+    cpsWithLinkedOpme: 0,
+    cpsWithoutLinkedOpmeCount: 0,
+    totalLinkedOpme: 0,
+  });
   const [cpsWithoutLinkedOpme, setCpsWithoutLinkedOpme] = useState<LocalCpsRecord[]>([]);
-  const [totalLinkedOpme, setTotalLinkedOpme] = useState(0);
 
-  const fetchDashboardData = useCallback(async () => { /* ...código mantido... */ }, [userId]);
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const { data: localCpsData, error: cpsError } = await supabase
+        .from("local_cps_records")
+        .select("id, cps_id, patient, business_unit")
+        .eq("user_id", user.id);
 
-  useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+      if (cpsError) throw cpsError;
 
-  if (loading) { /* ...código mantido... */ }
+      const { data: linkedOpmeData, error: opmeError } = await supabase
+        .from("linked_opme")
+        .select("cps_id, quantity")
+        .eq("user_id", user.id);
+
+      if (opmeError) throw opmeError;
+
+      const linkedCpsIds = new Set(linkedOpmeData.map(item => item.cps_id));
+      const cpsWithoutOpme = localCpsData.filter(cps => !linkedCpsIds.has(cps.cps_id));
+      const totalOpmeCount = linkedOpmeData.reduce((sum, item) => sum + item.quantity, 0);
+
+      setStats({
+        totalCps: localCpsData.length,
+        cpsWithLinkedOpme: linkedCpsIds.size,
+        cpsWithoutLinkedOpmeCount: cpsWithoutOpme.length,
+        totalLinkedOpme: totalOpmeCount,
+      });
+      setCpsWithoutLinkedOpme(cpsWithoutOpme as LocalCpsRecord[]);
+    } catch (error: any) {
+      console.error("Erro ao buscar dados do dashboard:", error);
+      toast.error(`Falha ao carregar dados do dashboard: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const chartData = [
+    { name: 'Com Bipagem', value: stats.cpsWithLinkedOpme, fill: 'hsl(var(--primary))' },
+    { name: 'Sem Bipagem', value: stats.cpsWithoutLinkedOpmeCount, fill: 'hsl(var(--destructive))' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Cards de estatísticas com hover effect */}
-        <Card className="shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de CPS</CardTitle><Package className="h-5 w-5 text-primary" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{totalCps}</div></CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">CPS com Bipagem</CardTitle><CheckCircle className="h-5 w-5 text-green-500" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{cpsWithLinkedOpme}</div></CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">CPS Sem Bipagem</CardTitle><XCircle className="h-5 w-5 text-red-500" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{cpsWithoutLinkedOpme.length}</div></CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">OPMEs Bipados</CardTitle><Scan className="h-5 w-5 text-blue-500" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{totalLinkedOpme}</div></CardContent>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Coluna Esquerda: Estatísticas e Ações Rápidas */}
+        <div className="lg:col-span-1 space-y-8">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Ações Rápidas</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <Button asChild size="lg"><Link to="/opme-scanner"><Scan className="mr-2 h-5 w-5" /> Iniciar Bipagem</Link></Button>
+              <Button asChild size="lg" variant="outline"><Link to="/opme-registration"><PlusCircle className="mr-2 h-5 w-5" /> Cadastrar OPME</Link></Button>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="shadow-md"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total de CPS</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalCps}</div></CardContent></Card>
+            <Card className="shadow-md"><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">OPMEs Bipados</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalLinkedOpme}</div></CardContent></Card>
+          </div>
+        </div>
+
+        {/* Coluna Direita: Gráfico */}
+        <Card className="lg:col-span-2 shadow-lg">
+          <CardHeader>
+            <CardTitle>Visão Geral de Bipagens</CardTitle>
+            <CardDescription>Distribuição de CPS com e sem bipagem de OPME.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip
+                  cursor={{ fill: 'hsla(var(--accent), 0.5)' }}
+                  contentStyle={{
+                    background: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 'var(--radius)',
+                  }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader><CardTitle className="flex items-center gap-3 text-2xl font-semibold"><XCircle className="h-6 w-6 text-red-500" /> Pacientes Aguardando Bipagem</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-xl font-semibold">
+            <XCircle className="h-6 w-6 text-destructive" /> Pacientes Aguardando Bipagem
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           {cpsWithoutLinkedOpme.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Todos os CPS registrados possuem bipagens!</p>
+            <p className="text-muted-foreground text-center py-4">Ótimo trabalho! Todos os pacientes registrados possuem bipagens.</p>
           ) : (
             <ScrollArea className="h-[350px] w-full">
               <Table>
