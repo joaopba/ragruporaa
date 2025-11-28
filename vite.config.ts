@@ -8,6 +8,13 @@ export default defineConfig(() => ({
     host: "::",
     port: 8080,
     allowedHosts: ['ranucleo.chatconquista.com'],
+    proxy: {
+      '/logo-proxy': {
+        target: 'https://ranucleodeendoscopia.com.br',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/logo-proxy/, ''),
+      },
+    },
   },
   plugins: [dyadComponentTagger(), react()],
   resolve: {

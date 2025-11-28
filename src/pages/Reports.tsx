@@ -54,8 +54,8 @@ const Reports = () => {
         toast.warning("Não foi possível carregar o logo no PDF. O relatório será gerado sem ele.");
       }
     };
-    // Carregando o logo localmente para evitar erros de CORS
-    convertImageToBase64('/logo.png');
+    // Usando o proxy para evitar erros de CORS
+    convertImageToBase64('/logo-proxy/wp-content/themes/ra-v1/images/logo/logo-grupora-endoscopia.png');
   }, []);
 
   const handleGenerateReport = useCallback(async () => {
