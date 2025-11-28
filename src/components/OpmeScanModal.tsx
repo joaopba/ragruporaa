@@ -13,6 +13,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import CameraScanner from "./CameraScanner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface OpmeItem { id: string; opme: string; codigo_barras: string; }
 interface CpsRecord { CPS: number; PATIENT: string; AGREEMENT: string; }
@@ -24,6 +34,15 @@ interface OpmeScanModalProps {
   restrictions: OpmeRestriction[]; userId: string | undefined; onScanSuccess: () => void; onChangeCps: () => void;
 }
 
+interface AlertInfo {
+  type: 'BLOCK' | 'EXCLUSIVE_ALLOW' | 'SUGGEST_REPLACEMENT';
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  originalOpme?: OpmeItem;
+  replacementOpme?: OpmeItem;
+}
+
 const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
   isOpen, onClose, selectedCps, opmeInventory, restrictions, userId, onScanSuccess, onChangeCps,
 }) => {
@@ -31,6 +50,7 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
   const [loadingScan, setLoadingScan] = useState(false);
   const [currentSessionScans, setCurrentSessionScans] = useState<LinkedOpmeSessionItem[]>([]);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
+  const [alertInfo, setAlertInfo] = useState<AlertInfo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
@@ -78,9 +98,7 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     const opmeDetails = opmeInventory.find(item => item.codigo_barras === codeToScan);
     if (!opmeDetails) {
       toast.error("Código de barras não encontrado no seu inventário OPME.", { duration: 5000 });
-      setLoadingScan(false);
-      setBarcodeInput("");
-      inputRef.current?.focus();
+      setLoadingScan(false); setBarcodeInput(""); inputRef.current?.focus();
       return;
     }
 
@@ -88,8 +106,8 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     
     const blockRule = restrictions.find(r => r.rule_type === 'BLOCK' && r.opme_barcode === codeToScan && r.convenio_name.toLowerCase() === patientConvenio);
     if (blockRule) {
-      toast.error("OPME Bloqueado", { description: `Este item não é permitido para o convênio "${selectedCps.AGREEMENT}".`, icon: <ShieldAlert className="h-5 w-5 text-destructive" />, duration: 5000 });
-      setLoadingScan(false); setBarcodeInput(""); inputRef.current?.focus();
+      setAlertInfo({ type: 'BLOCK', title: "OPME Bloqueado", description: `Este item não é permitido para o convênio "${selectedCps.AGREEMENT}". A bipagem foi cancelada.`, icon: <ShieldAlert className="h-10 w-10 text-destructive" /> });
+      setLoadingScan(false); setBarcodeInput("");
       return;
     }
 
@@ -97,8 +115,8 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     if (exclusiveRulesForConvenio.length > 0) {
       const isAllowed = exclusiveRulesForConvenio.some(r => r.opme_barcode === codeToScan);
       if (!isAllowed) {
-        toast.error("Permissão Negada", { description: `Apenas OPMEs específicos são permitidos para o convênio "${selectedCps.AGREEMENT}".`, icon: <ShieldAlert className="h-5 w-5 text-destructive" />, duration: 5000 });
-        setLoadingScan(false); setBarcodeInput(""); inputRef.current?.focus();
+        setAlertInfo({ type: 'EXCLUSIVE_ALLOW', title: "Permissão Negada", description: `Apenas OPMEs específicos são permitidos para o convênio "${selectedCps.AGREEMENT}". Este item não está na lista de permissões.`, icon: <ShieldAlert className="h-10 w-10 text-destructive" /> });
+        setLoadingScan(false); setBarcodeInput("");
         return;
       }
     }
@@ -107,19 +125,8 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     if (suggestionRule && suggestionRule.replacement_opme_barcode) {
       const replacementOpmeDetails = opmeInventory.find(item => item.codigo_barras === suggestionRule.replacement_opme_barcode);
       if (replacementOpmeDetails) {
-        toast.info("Substituição Sugerida", {
-          description: `Para este convênio, sugere-se usar "${replacementOpmeDetails.opme}" no lugar de "${opmeDetails.opme}".`,
-          icon: <Shuffle className="h-5 w-5 text-yellow-500" />,
-          duration: 10000,
-          action: {
-            label: "Substituir",
-            onClick: () => {
-              toast.success(`"${replacementOpmeDetails.opme}" bipado com sucesso!`);
-              linkOpme(replacementOpmeDetails.codigo_barras, replacementOpmeDetails);
-            },
-          },
-        });
-        setLoadingScan(false); setBarcodeInput(""); inputRef.current?.focus();
+        setAlertInfo({ type: 'SUGGEST_REPLACEMENT', title: "Substituição Sugerida", description: `Para este convênio, sugere-se usar "${replacementOpmeDetails.opme}" no lugar de "${opmeDetails.opme}". O que você gostaria de fazer?`, icon: <Shuffle className="h-10 w-10 text-blue-500" />, originalOpme: opmeDetails, replacementOpme: replacementOpmeDetails });
+        setLoadingScan(false); setBarcodeInput("");
         return;
       }
     }
@@ -139,61 +146,95 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     handleBarcodeScan(decodedText);
   };
 
+  const handleCloseAlert = () => {
+    setAlertInfo(null);
+    inputRef.current?.focus();
+  };
+
+  const handleSuggestionChoice = (useSuggestion: boolean) => {
+    if (!alertInfo || !alertInfo.originalOpme || !alertInfo.replacementOpme) return;
+    if (useSuggestion) {
+      toast.success(`"${alertInfo.replacementOpme.opme}" bipado com sucesso!`);
+      linkOpme(alertInfo.replacementOpme.codigo_barras, alertInfo.replacementOpme);
+    } else {
+      toast.info(`Continuando com "${alertInfo.originalOpme.opme}".`);
+      linkOpme(alertInfo.originalOpme.codigo_barras, alertInfo.originalOpme);
+    }
+    handleCloseAlert();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Bipagem de OPME para: {selectedCps?.PATIENT}</DialogTitle>
-        </DialogHeader>
-        <div className="grid md:grid-cols-2 gap-6 pt-4">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="barcode-input">Bipar Código de Barras</Label>
-              <div className="flex items-center space-x-2">
-                <Input ref={inputRef} id="barcode-input" placeholder="Aguardando bipagem..." value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleBarcodeScan(barcodeInput)} disabled={loadingScan} />
-                {isMobile ? (
-                  <Sheet open={isCameraScannerOpen} onOpenChange={setIsCameraScannerOpen}>
-                    <SheetTrigger asChild>
-                      <Button variant="outline" size="icon"><Camera className="h-4 w-4" /></Button>
-                    </SheetTrigger>
-                    <SheetContent side="bottom">
-                      <SheetHeader><SheetTitle>Aponte para o Código de Barras</SheetTitle></SheetHeader>
-                      <div className="py-4">
-                        <CameraScanner onScanSuccess={handleCameraScanSuccess} onClose={() => setIsCameraScannerOpen(false)} />
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                ) : (
-                  <Button onClick={() => handleBarcodeScan(barcodeInput)} disabled={loadingScan}>{loadingScan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}</Button>
-                )}
-              </div>
-            </div>
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-lg">Informações do Paciente</CardTitle></CardHeader>
-              <CardContent className="text-sm space-y-1">
-                <p><strong>CPS:</strong> {selectedCps?.CPS}</p>
-                <p><strong>Convênio:</strong> {selectedCps?.AGREEMENT}</p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="space-y-2">
-            <Label>Bipados Nesta Sessão</Label>
-            <ScrollArea className="h-48 w-full rounded-md border p-2">
-              {currentSessionScans.length > 0 ? currentSessionScans.map(item => (
-                <div key={item.opme_barcode} className="flex justify-between items-center p-2 rounded hover:bg-muted">
-                  <span className="text-sm font-medium">{item.opmeDetails?.opme || item.opme_barcode}</span>
-                  <span className="text-sm font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{item.quantity}x</span>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bipagem de OPME para: {selectedCps?.PATIENT}</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-6 pt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="barcode-input">Bipar Código de Barras</Label>
+                <div className="flex items-center space-x-2">
+                  <Input ref={inputRef} id="barcode-input" placeholder="Aguardando bipagem..." value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleBarcodeScan(barcodeInput)} disabled={loadingScan} />
+                  {isMobile ? (
+                    <Sheet open={isCameraScannerOpen} onOpenChange={setIsCameraScannerOpen}>
+                      <SheetTrigger asChild><Button variant="outline" size="icon"><Camera className="h-4 w-4" /></Button></SheetTrigger>
+                      <SheetContent side="bottom"><SheetHeader><SheetTitle>Aponte para o Código de Barras</SheetTitle></SheetHeader><div className="py-4"><CameraScanner onScanSuccess={handleCameraScanSuccess} onClose={() => setIsCameraScannerOpen(false)} /></div></SheetContent>
+                    </Sheet>
+                  ) : (
+                    <Button onClick={() => handleBarcodeScan(barcodeInput)} disabled={loadingScan}>{loadingScan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}</Button>
+                  )}
                 </div>
-              )) : <p className="text-sm text-muted-foreground text-center pt-4">Nenhum item bipado ainda.</p>}
-            </ScrollArea>
+              </div>
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-lg">Informações do Paciente</CardTitle></CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <p><strong>CPS:</strong> {selectedCps?.CPS}</p>
+                  <p><strong>Convênio:</strong> {selectedCps?.AGREEMENT}</p>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="space-y-2">
+              <Label>Bipados Nesta Sessão</Label>
+              <ScrollArea className="h-48 w-full rounded-md border p-2">
+                {currentSessionScans.length > 0 ? currentSessionScans.map(item => (
+                  <div key={item.opme_barcode} className="flex justify-between items-center p-2 rounded hover:bg-muted">
+                    <span className="text-sm font-medium">{item.opmeDetails?.opme || item.opme_barcode}</span>
+                    <span className="text-sm font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{item.quantity}x</span>
+                  </div>
+                )) : <p className="text-sm text-muted-foreground text-center pt-4">Nenhum item bipado ainda.</p>}
+              </ScrollArea>
+            </div>
           </div>
-        </div>
-        <DialogFooter className="pt-4">
-          <Button variant="outline" onClick={onChangeCps}><Users className="mr-2 h-4 w-4" /> Trocar Paciente</Button>
-          <Button onClick={onClose}><XCircle className="mr-2 h-4 w-4" /> Fechar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={onChangeCps}><Users className="mr-2 h-4 w-4" /> Trocar Paciente</Button>
+            <Button onClick={onClose}><XCircle className="mr-2 h-4 w-4" /> Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!alertInfo} onOpenChange={(isOpen) => !isOpen && handleCloseAlert()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              {alertInfo?.icon}
+              <AlertDialogTitle className="mt-4 text-2xl">{alertInfo?.title}</AlertDialogTitle>
+              <AlertDialogDescription className="mt-2">{alertInfo?.description}</AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {alertInfo?.type === 'SUGGEST_REPLACEMENT' ? (
+              <>
+                <AlertDialogCancel onClick={() => handleSuggestionChoice(false)}>Usar Original</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleSuggestionChoice(true)}>Usar Sugestão</AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={handleCloseAlert}>Entendido</AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
