@@ -60,10 +60,10 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, 
 
       if (localError && localError.code !== 'PGRST116') throw localError;
 
-      toast.info("Não encontrado localmente. Buscando no serviço externo...");
+      toast.info("Não encontrado localmente. Buscando no serviço externo (últimos 90 dias)...");
       const today = new Date();
-      const thirtyDaysAgo = subDays(today, 30);
-      const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cps-records', { body: { start_date: format(thirtyDaysAgo, "yyyy-MM-dd"), end_date: format(today, "yyyy-MM-dd") } });
+      const ninetyDaysAgo = subDays(today, 90);
+      const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cps-records', { body: { start_date: format(ninetyDaysAgo, "yyyy-MM-dd"), end_date: format(today, "yyyy-MM-dd") } });
 
       if (apiError) throw apiError;
 
@@ -74,7 +74,7 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, 
           setSearchResults([result]);
           await supabase.from('local_cps_records').upsert({ user_id: user.id, cps_id: result.CPS, patient: result.PATIENT, professional: result.PROFESSIONAL, agreement: result.AGREEMENT, business_unit: result.UNIDADENEGOCIO, created_at: result.CREATED_AT }, { onConflict: 'cps_id, user_id' });
         } else {
-          toast.warning("Paciente não encontrado para o período de 30 dias.");
+          toast.warning("Paciente não encontrado para o período de 90 dias.");
         }
       } else {
         toast.error("Resposta inesperada do serviço externo.");
@@ -148,7 +148,7 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, 
               <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                 <AlertCircle className="h-8 w-8 mb-2" />
                 <p>Nenhum resultado encontrado.</p>
-                <p className="text-xs mb-4">O paciente pode não estar nos registros dos últimos 30 dias.</p>
+                <p className="text-xs mb-4">O paciente pode não estar nos registros dos últimos 90 dias.</p>
                 <Button variant="outline" onClick={() => setIsManualAddOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Não encontrou? Cadastre manualmente</Button>
               </div>
             )}
