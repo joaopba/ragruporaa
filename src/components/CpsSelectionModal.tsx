@@ -72,10 +72,10 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, 
       // 2. Se não encontrou, busca na API externa (lento)
       toast.info("Não encontrado localmente. Buscando no serviço externo...");
       const today = new Date();
-      const fifteenDaysAgo = subDays(today, 15);
+      const fiveDaysAgo = subDays(today, 5);
       const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cps-records', {
         body: {
-          start_date: format(fifteenDaysAgo, "yyyy-MM-dd"),
+          start_date: format(fiveDaysAgo, "yyyy-MM-dd"),
           end_date: format(today, "yyyy-MM-dd"),
           business_unit: "47",
         },
@@ -99,7 +99,7 @@ const CpsSelectionModal: React.FC<CpsSelectionModalProps> = ({ isOpen, onClose, 
             created_at: result.CREATED_AT,
           }, { onConflict: 'cps_id, user_id' });
         } else {
-          toast.warning("Paciente não encontrado para o período de 15 dias.");
+          toast.warning("Paciente não encontrado para o período de 5 dias.");
         }
       } else {
         toast.error("Resposta inesperada do serviço externo.");
