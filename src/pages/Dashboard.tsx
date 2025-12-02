@@ -88,7 +88,7 @@ const Dashboard = () => {
               <CardTitle>Ações Rápidas</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <Button asChild size="lg"><Link to="/opme-scanner"><Scan className="mr-2 h-5 w-5" /> Iniciar Bipagem</Link></Button>
+              <Button asChild size="lg"><Link to="/opme-scanner?action=select_cps"><Scan className="mr-2 h-5 w-5" /> Iniciar Bipagem</Link></Button>
               <Button asChild size="lg" variant="outline"><Link to="/opme-registration"><PlusCircle className="mr-2 h-5 w-5" /> Cadastrar OPME</Link></Button>
             </CardContent>
           </Card>

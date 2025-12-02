@@ -69,6 +69,7 @@ const OpmeScanner = () => {
     setIsScanModalOpen(true);
     setSearchParams(params => {
       params.delete('cps_id');
+      params.delete('action');
       return params;
     });
     await supabase.from('local_cps_records').upsert({
@@ -89,7 +90,8 @@ const OpmeScanner = () => {
   useEffect(() => {
     if (user?.id && !initialLoadHandled) {
       const cpsIdFromUrl = searchParams.get('cps_id');
-      if (cpsIdFromUrl) {
+      const action = searchParams.get('action');
+      if (cpsIdFromUrl || action === 'select_cps') {
         setIsCpsSelectionModalOpen(true);
       }
       setInitialLoadHandled(true);
