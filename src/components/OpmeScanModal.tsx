@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Scan, Loader2, XCircle, Users, ShieldAlert, Info, Shuffle, Camera } from "lucide-react";
+import { Scan, Loader2, XCircle, Users, ShieldAlert, Info, Shuffle, Camera, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,15 +23,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useSession } from "./SessionContextProvider";
 
 interface OpmeItem { id: string; opme: string; codigo_barras: string; }
 interface CpsRecord { CPS: number; PATIENT: string; AGREEMENT: string; }
 interface OpmeRestriction { opme_barcode: string; convenio_name: string; rule_type: 'BLOCK' | 'BILLING_ALERT' | 'EXCLUSIVE_ALLOW' | 'SUGGEST_REPLACEMENT'; message: string | null; replacement_opme_barcode?: string | null; }
-interface LinkedOpmeSessionItem { opme_barcode: string; quantity: number; opmeDetails?: OpmeItem; }
+interface LinkedOpme { id: string; user_id: string; opme_barcode: string; linked_at: string; quantity: number; opmeDetails?: OpmeItem; }
 
 interface OpmeScanModalProps {
   isOpen: boolean; onClose: () => void; selectedCps: CpsRecord | null; opmeInventory: OpmeItem[];
-  restrictions: OpmeRestriction[]; userId: string | undefined; onScanSuccess: () => void; onChangeCps: () => void;
+  restrictions: OpmeRestriction[]; onScanSuccess: () => void; onChangeCps: () => void; linkedOpme: LinkedOpme[];
 }
 
 interface AlertInfo {
@@ -44,11 +45,11 @@ interface AlertInfo {
 }
 
 const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
-  isOpen, onClose, selectedCps, opmeInventory, restrictions, userId, onScanSuccess, onChangeCps,
+  isOpen, onClose, selectedCps, opmeInventory, restrictions, onScanSuccess, onChangeCps, linkedOpme
 }) => {
+  const { user, profile } = useSession();
   const [barcodeInput, setBarcodeInput] = useState<string>("");
   const [loadingScan, setLoadingScan] = useState(false);
-  const [currentSessionScans, setCurrentSessionScans] = useState<LinkedOpmeSessionItem[]>([]);
   const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
   const [alertInfo, setAlertInfo] = useState<AlertInfo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -57,39 +58,42 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setBarcodeInput("");
-      setCurrentSessionScans([]);
       const timer = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
-  const linkOpme = async (barcodeToLink: string, opmeDetails: OpmeItem) => {
-    if (!selectedCps || !userId) return;
+  const linkOpme = async (barcodeToLink: string) => {
+    if (!selectedCps || !user) return;
     try {
-      const { data: existingLink, error: selectError } = await supabase.from('linked_opme').select('id, quantity').eq('user_id', userId).eq('cps_id', selectedCps.CPS).eq('opme_barcode', barcodeToLink).single();
+      const { data: existingLink, error: selectError } = await supabase.from('linked_opme').select('id, quantity').eq('user_id', user.id).eq('cps_id', selectedCps.CPS).eq('opme_barcode', barcodeToLink).single();
       if (selectError && selectError.code !== 'PGRST116') throw selectError;
 
       if (existingLink) {
         const { error: updateError } = await supabase.from('linked_opme').update({ quantity: existingLink.quantity + 1 }).eq('id', existingLink.id);
         if (updateError) throw updateError;
       } else {
-        const { error: insertError } = await supabase.from('linked_opme').insert({ user_id: userId, cps_id: selectedCps.CPS, opme_barcode: barcodeToLink, quantity: 1 });
+        const { error: insertError } = await supabase.from('linked_opme').insert({ user_id: user.id, cps_id: selectedCps.CPS, opme_barcode: barcodeToLink, quantity: 1 });
         if (insertError) throw insertError;
       }
-      
-      setCurrentSessionScans(prev => {
-        const existing = prev.find(s => s.opme_barcode === barcodeToLink);
-        if (existing) return prev.map(s => s.opme_barcode === barcodeToLink ? { ...s, quantity: s.quantity + 1 } : s);
-        return [...prev, { opme_barcode: barcodeToLink, quantity: 1, opmeDetails }];
-      });
       onScanSuccess();
     } catch (error: any) {
       toast.error(`Erro ao bipar OPME: ${error.message}`);
     }
   };
 
+  const handleDeleteLinkedOpme = async (linkedOpmeId: string) => {
+    const { error } = await supabase.from('linked_opme').delete().eq('id', linkedOpmeId);
+    if (error) {
+      toast.error(`Falha ao excluir bipagem: ${error.message}`);
+    } else {
+      toast.success("Bipagem excluída com sucesso.");
+      onScanSuccess();
+    }
+  };
+
   const handleBarcodeScan = async (codeToScan: string) => {
-    if (!selectedCps || !codeToScan || !userId) {
+    if (!selectedCps || !codeToScan || !user) {
       toast.error("CPS, código de barras e login são necessários.");
       return;
     }
@@ -136,7 +140,7 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
       toast.info("Alerta de Faturamento", { description: alertRule.message, icon: <Info className="h-5 w-5 text-blue-500" />, duration: 5000 });
     }
 
-    await linkOpme(codeToScan, opmeDetails);
+    await linkOpme(codeToScan);
     setLoadingScan(false); setBarcodeInput(""); inputRef.current?.focus();
   };
 
@@ -155,10 +159,10 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
     if (!alertInfo || !alertInfo.originalOpme || !alertInfo.replacementOpme) return;
     if (useSuggestion) {
       toast.success(`"${alertInfo.replacementOpme.opme}" bipado com sucesso!`);
-      linkOpme(alertInfo.replacementOpme.codigo_barras, alertInfo.replacementOpme);
+      linkOpme(alertInfo.replacementOpme.codigo_barras);
     } else {
       toast.info(`Continuando com "${alertInfo.originalOpme.opme}".`);
-      linkOpme(alertInfo.originalOpme.codigo_barras, alertInfo.originalOpme);
+      linkOpme(alertInfo.originalOpme.codigo_barras);
     }
     handleCloseAlert();
   };
@@ -195,14 +199,41 @@ const OpmeScanModal: React.FC<OpmeScanModalProps> = ({
               </Card>
             </div>
             <div className="space-y-2">
-              <Label>Bipados Nesta Sessão</Label>
+              <Label>OPMEs Bipados para este Paciente</Label>
               <ScrollArea className="h-48 w-full rounded-md border p-2">
-                {currentSessionScans.length > 0 ? currentSessionScans.map(item => (
-                  <div key={item.opme_barcode} className="flex justify-between items-center p-2 rounded hover:bg-muted">
-                    <span className="text-sm font-medium">{item.opmeDetails?.opme || item.opme_barcode}</span>
-                    <span className="text-sm font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{item.quantity}x</span>
-                  </div>
-                )) : <p className="text-sm text-muted-foreground text-center pt-4">Nenhum item bipado ainda.</p>}
+                {linkedOpme.length > 0 ? linkedOpme.map(item => {
+                  const isGestor = profile?.role === 'GESTOR';
+                  const isOwner = item.user_id === user?.id;
+                  const linkedAtDate = new Date(item.linked_at);
+                  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                  const isWithinOneHour = linkedAtDate > oneHourAgo;
+                  const canDelete = isGestor || (isOwner && isWithinOneHour);
+
+                  return (
+                    <div key={item.id} className="flex justify-between items-center p-2 rounded hover:bg-muted">
+                      <span className="text-sm font-medium">{item.opmeDetails?.opme || item.opme_barcode}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{item.quantity}x</span>
+                        {canDelete && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza de que deseja excluir esta bipagem?</AlertDialogDescription></AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteLinkedOpme(item.id)} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }) : <p className="text-sm text-muted-foreground text-center pt-4">Nenhum item bipado ainda.</p>}
               </ScrollArea>
             </div>
           </div>

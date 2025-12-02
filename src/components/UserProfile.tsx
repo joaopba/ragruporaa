@@ -35,8 +35,8 @@ const UserProfile = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10 border">
+        <Button variant="outline" size="icon" className="rounded-full h-9 w-9">
+          <Avatar className="h-8 w-8">
             <AvatarImage src={profile?.avatar_url ?? ""} alt="Avatar" />
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>

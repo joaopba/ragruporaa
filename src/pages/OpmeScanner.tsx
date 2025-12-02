@@ -15,11 +15,11 @@ import CpsSelectionModal from "@/components/CpsSelectionModal";
 
 interface CpsRecord { CPS: number; PATIENT: string; PROFESSIONAL: string; AGREEMENT: string; UNIDADENEGOCIO: string; CREATED_AT: string; }
 interface OpmeItem { id: string; opme: string; lote: string; validade: string; referencia: string; anvisa: string; tuss: string; cod_simpro: string; codigo_barras: string; }
-interface LinkedOpme { id: string; cps_id: number; opme_barcode: string; linked_at: string; quantity: number; opmeDetails?: OpmeItem; }
+interface LinkedOpme { id: string; user_id: string; cps_id: number; opme_barcode: string; linked_at: string; quantity: number; opmeDetails?: OpmeItem; }
 interface OpmeRestriction { id: string; opme_barcode: string; convenio_name: string; rule_type: 'BLOCK' | 'BILLING_ALERT' | 'EXCLUSIVE_ALLOW'; message: string | null; }
 
 const OpmeScanner = () => {
-  const { user } = useSession();
+  const { user, profile } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedCps, setSelectedCps] = useState<CpsRecord | null>(null);
@@ -31,7 +31,6 @@ const OpmeScanner = () => {
   const [initialLoadHandled, setInitialLoadHandled] = useState(false);
 
   const fetchData = useCallback(async () => {
-    // Fetch inventory and restrictions in parallel - REMOVED user.id filter to make it global
     const [inventoryRes, restrictionsRes] = await Promise.all([
       supabase.from("opme_inventory").select("*"),
       supabase.from("opme_restrictions").select("*")
@@ -45,12 +44,11 @@ const OpmeScanner = () => {
   }, []);
 
   const fetchLinkedOpme = useCallback(async () => {
-    if (!user?.id || !selectedCps) return;
+    if (!selectedCps) return;
     const { data, error } = await supabase
       .from("linked_opme")
       .select("*")
-      .eq("user_id", user.id)
-      .eq("cps_id", selectedCps.CPS)
+      .eq("cps_id", selectedCps.CPS) // Removido o filtro de user_id
       .order("linked_at", { ascending: false });
 
     if (error) {
@@ -62,7 +60,7 @@ const OpmeScanner = () => {
       opmeDetails: opmeInventory.find(opme => opme.codigo_barras === link.opme_barcode),
     }));
     setLinkedOpme(enrichedData);
-  }, [user?.id, selectedCps, opmeInventory]);
+  }, [selectedCps, opmeInventory]);
 
   const handleCpsSelected = useCallback(async (record: CpsRecord) => {
     if (!user?.id) return;
@@ -163,7 +161,7 @@ const OpmeScanner = () => {
       )}
 
       <CpsSelectionModal isOpen={isCpsSelectionModalOpen} onClose={() => setIsCpsSelectionModalOpen(false)} onCpsSelected={handleCpsSelected} />
-      {selectedCps && <OpmeScanModal key={selectedCps.CPS} isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} selectedCps={selectedCps} opmeInventory={opmeInventory} restrictions={restrictions} userId={user?.id} onScanSuccess={fetchLinkedOpme} onChangeCps={handleChangeCps} />}
+      {selectedCps && <OpmeScanModal key={selectedCps.CPS} isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} selectedCps={selectedCps} opmeInventory={opmeInventory} restrictions={restrictions} onScanSuccess={fetchLinkedOpme} onChangeCps={handleChangeCps} linkedOpme={linkedOpme} />}
     </div>
   );
 };
