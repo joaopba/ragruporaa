@@ -62,7 +62,7 @@ const OpmeScanner = () => {
     setLinkedOpme(enrichedData);
   }, [selectedCps, opmeInventory]);
 
-  const handleCpsSelected = useCallback(async (record: CpsRecord) => {
+  const handleCpsSelected = useCallback((record: CpsRecord) => {
     if (!user?.id) return;
     setSelectedCps(record);
     setIsCpsSelectionModalOpen(false);
@@ -72,15 +72,9 @@ const OpmeScanner = () => {
       params.delete('action');
       return params;
     });
-    await supabase.from('local_cps_records').upsert({
-      user_id: user.id,
-      cps_id: record.CPS,
-      patient: record.PATIENT,
-      professional: record.PROFESSIONAL,
-      agreement: record.AGREEMENT,
-      business_unit: record.UNIDADENEGOCIO,
-      created_at: record.CREATED_AT,
-    }, { onConflict: 'cps_id, user_id' });
+    // A operação de upsert que estava aqui foi removida.
+    // Ela era redundante, pois o CpsSelectionModal já garante que o registro
+    // existe no banco de dados, e estava causando violações de RLS para não-gestores.
   }, [user?.id, setSearchParams]);
 
   useEffect(() => {
