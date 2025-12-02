@@ -34,7 +34,7 @@ const ruleTypes = {
 };
 
 const OpmeRegistration = () => {
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const userId = session?.user?.id;
 
   const [opmeInventory, setOpmeInventory] = useState<OpmeItem[]>([]);
@@ -56,20 +56,38 @@ const OpmeRegistration = () => {
   const fetchOpmeInventory = useCallback(async () => {
     if (!userId) { setLoadingInventory(false); return; }
     setLoadingInventory(true);
-    const { data, error } = await supabase.from("opme_inventory").select("*").eq("user_id", userId).order("opme", { ascending: true });
+    
+    let query = supabase.from("opme_inventory").select("*");
+
+    // Gestores podem ver todos os OPMEs. Outros usuários (se tivessem acesso) veriam apenas os seus.
+    if (profile?.role !== 'GESTOR') {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query.order("opme", { ascending: true });
+
     if (error) toast.error("Falha ao carregar inventário OPME.");
     else setOpmeInventory(data as OpmeItem[]);
     setLoadingInventory(false);
-  }, [userId]);
+  }, [userId, profile?.role]);
 
   const fetchRestrictions = useCallback(async () => {
     if (!userId) { setLoadingRestrictions(false); return; }
     setLoadingRestrictions(true);
-    const { data, error } = await supabase.from("opme_restrictions").select("*").eq("user_id", userId);
+    
+    let query = supabase.from("opme_restrictions").select("*");
+
+    // Gestores podem ver todas as restrições. Outros usuários (se tivessem acesso) veriam apenas as suas.
+    if (profile?.role !== 'GESTOR') {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query;
+
     if (error) toast.error("Falha ao carregar restrições.");
     else setRestrictions(data as OpmeRestriction[]);
     setLoadingRestrictions(false);
-  }, [userId]);
+  }, [userId, profile?.role]);
 
   useEffect(() => {
     fetchOpmeInventory();
