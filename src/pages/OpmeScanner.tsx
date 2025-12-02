@@ -48,7 +48,7 @@ const OpmeScanner = () => {
     const { data, error } = await supabase
       .from("linked_opme")
       .select("*")
-      .eq("cps_id", selectedCps.CPS) // Removido o filtro de user_id
+      .eq("cps_id", selectedCps.CPS)
       .order("linked_at", { ascending: false });
 
     if (error) {
