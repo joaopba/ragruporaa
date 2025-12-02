@@ -3,7 +3,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Package, Scan, History, LogOut, LayoutDashboard, Users, FileText, Bug } from "lucide-react";
+import { Package, Scan, History, LogOut, LayoutDashboard, Users, FileText } from "lucide-react";
 import { useSession } from "./SessionContextProvider";
 import { Button } from "./ui/button";
 
@@ -14,7 +14,6 @@ const navItems = [
   { name: "Relatórios", href: "/reports", icon: FileText, roles: ['GESTOR', 'OPERADOR', 'RECEPÇÃO'] },
   { name: "Cadastro de OPME", href: "/opme-registration", icon: Package, roles: ['GESTOR'] },
   { name: "Gerenciar Usuários", href: "/user-management", icon: Users, roles: ['GESTOR'] },
-  { name: "Debug", href: "/debug", icon: Bug, roles: ['GESTOR'] },
 ];
 
 const Sidebar = () => {

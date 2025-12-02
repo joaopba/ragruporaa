@@ -18,7 +18,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import Account from "./pages/Account";
 import UserManagement from "./pages/UserManagement";
 import Reports from "./pages/Reports"; // Importar a nova página
-import DebugPage from "./pages/Debug"; // Importar a página de Debug
 
 const queryClient = new QueryClient();
 
@@ -38,7 +37,6 @@ const App = () => (
                 <Route path="/linked-opme-view" element={<LinkedOpmeView />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/account" element={<Account />} />
-                <Route path="/debug" element={<DebugPage />} />
                 
                 {/* Rotas exclusivas para Gestores */}
                 <Route element={<RoleProtectedRoute allowedRoles={['GESTOR']} />}>

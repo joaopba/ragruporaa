@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, Package, Scan, History, LogOut, LayoutDashboard, Users, FileText, Bug } from "lucide-react";
+import { Menu, Package, Scan, History, LogOut, LayoutDashboard, Users, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,6 @@ const navItems = [
   { name: "Relatórios", href: "/reports", icon: FileText, roles: ['GESTOR', 'OPERADOR', 'RECEPÇÃO'] },
   { name: "Cadastro de OPME", href: "/opme-registration", icon: Package, roles: ['GESTOR'] },
   { name: "Gerenciar Usuários", href: "/user-management", icon: Users, roles: ['GESTOR'] },
-  { name: "Debug", href: "/debug", icon: Bug, roles: ['GESTOR'] },
 ];
 
 export function MobileNav() {
